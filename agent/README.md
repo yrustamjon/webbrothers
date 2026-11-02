@@ -4,13 +4,13 @@ Agent faqat oʻzi ishlayotgan OS foydalanuvchisi ruxsatlariga ega. Uni root yoki
 
 ## Yigʻish va tekshirish
 
-Go 1.23+ va CGO uchun mahalliy C kompilyatori (Linux: GCC, macOS: Xcode command line tools, Windows: mos GCC) kerak. `CGO_ENABLED=0` bilan tarix adapteri ishlamaydi; uni funksional reliz deb tarqatmang. Har bir OS binarini oʻsha OS dagi CI orqali yigʻing.
+Qoʻllab-quvvatlanadigan barqaror Go 1.27.x (joriy tekshiruv: 1.27.3) va CGO uchun mahalliy C kompilyatori (Linux: GCC, macOS: Xcode command line tools, Windows: mos GCC) kerak. `CGO_ENABLED=0` bilan tarix adapteri ishlamaydi; uni funksional reliz deb tarqatmang. Har bir OS binarini oʻsha OS dagi CI orqali yigʻing.
 
 ```sh
 cd agent
 go mod download
 go test -race ./...
-go build -o browser-agent ./cmd/browser-agent
+go build -buildvcs=false -o browser-agent ./cmd/browser-agent
 ```
 
 ## Ulash
