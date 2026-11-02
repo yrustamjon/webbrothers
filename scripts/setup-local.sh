@@ -14,7 +14,15 @@ for bmp_command in node npm go cc; do
   fi
 done
 node -e 'if(Number(process.versions.node.split(".")[0])<24){console.error("Node.js 24 yoki yangirogʻi kerak");process.exit(1)}'
-"$bmp_python" -c 'import re,subprocess,sys; v=re.search(r"go(\d+)\.(\d+)",subprocess.check_output(["go","version"],text=True));sys.exit(0 if v and tuple(map(int,v.groups())) >= (1,27) else "Go 1.27 yoki yangirogʻi kerak")'
+"$bmp_python" - <<'PYTHON'
+import pathlib, re, subprocess
+required = re.search(r"^go (\d+)\.(\d+)", pathlib.Path('agent/go.mod').read_text(), re.M)
+installed_text = subprocess.check_output(['go', 'version'], text=True).strip()
+installed = re.search(r"go(\d+)\.(\d+)", installed_text)
+if not installed or tuple(map(int, installed.groups())) < tuple(map(int, required.groups())):
+    minimum = '.'.join(required.groups())
+    raise SystemExit(f'Go {minimum}+ kerak. Hozir: {installed_text}. brew upgrade go bajaring.')
+PYTHON
 if [ ! -x .venv/bin/python ]; then
   if command -v uv >/dev/null 2>&1; then
     uv venv --seed --python "$bmp_python" .venv

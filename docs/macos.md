@@ -20,7 +20,7 @@ node --version
 go version
 ```
 
-Python 3.13, Node 24 va Go 1.27 yoki yangiroq barqaror versiya ishlatilishi kerak. CGO tarix adapteri uchun Xcode C kompilyatori kerak; `CGO_ENABLED=0` bilan tarix adapteri ishlamaydi. `export PATH` yangi terminal ochilganda qayta kerak boʻlishi mumkin.
+Python 3.13, Node 24 va Go 1.23 yoki yangiroq versiya (eng soʻnggi barqaror versiya tavsiya etiladi) ishlatilishi kerak. CGO tarix adapteri uchun Xcode C kompilyatori kerak; `CGO_ENABLED=0` bilan tarix adapteri ishlamaydi. `export PATH` yangi terminal ochilganda qayta kerak boʻlishi mumkin.
 
 ## Tayyorlash va serverni boshlash
 

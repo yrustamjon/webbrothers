@@ -4,7 +4,7 @@ Agent faqat oʻzi ishlayotgan OS foydalanuvchisi ruxsatlariga ega. Uni root yoki
 
 ## Yigʻish va tekshirish
 
-Qoʻllab-quvvatlanadigan barqaror Go 1.27.x (joriy tekshiruv: 1.27.3) va CGO uchun mahalliy C kompilyatori (Linux: GCC, macOS: Xcode command line tools, Windows: mos GCC) kerak. `CGO_ENABLED=0` bilan tarix adapteri ishlamaydi; uni funksional reliz deb tarqatmang. Har bir OS binarini oʻsha OS dagi CI orqali yigʻing.
+Go 1.23+ (eng soʻnggi qoʻllab-quvvatlanadigan barqaror versiya tavsiya etiladi) va CGO uchun mahalliy C kompilyatori (Linux: GCC, macOS: Xcode command line tools, Windows: mos GCC) kerak. `CGO_ENABLED=0` bilan tarix adapteri ishlamaydi; uni funksional reliz deb tarqatmang. Har bir OS binarini oʻsha OS dagi CI orqali yigʻing.
 
 ```sh
 cd agent
