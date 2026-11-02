@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bmp:protocol:v1",
+  "title": "Browser Monitoring Platform v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "request_id",
+    "device_id",
+    "type",
+    "timestamp",
+    "expires_at",
+    "scope"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "type": {
+      "enum": [
+        "AGENT_HELLO",
+        "AGENT_STATUS",
+        "HEARTBEAT",
+        "BROWSER_LIST_REQUEST",
+        "BROWSER_LIST_RESPONSE",
+        "PROFILE_LIST_REQUEST",
+        "PROFILE_LIST_RESPONSE",
+        "HISTORY_QUERY",
+        "HISTORY_RESPONSE",
+        "LOGIN_INVENTORY_QUERY",
+        "LOGIN_INVENTORY_RESPONSE",
+        "TRAFFIC_STATS_REQUEST",
+        "TRAFFIC_STATS_RESPONSE",
+        "REQUEST_CANCEL",
+        "AGENT_ERROR"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scope": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "params": {
+      "type": "object"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
