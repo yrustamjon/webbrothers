@@ -8,7 +8,7 @@ RUN --mount=type=secret,id=proxy_ca \
 COPY apps/api/ ./
 COPY packages/security/ /app/packages/security/
 ENV PYTHONPATH=/app:/app/packages/security
-RUN useradd --system --uid 10001 bmp
+RUN chmod -R a+rX /app && useradd --system --uid 10001 bmp
 USER 10001
 EXPOSE 8000
 CMD ["uvicorn", "bmp.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log", "--ws-max-size", "1048576"]
