@@ -1,0 +1,17 @@
+[Unit]
+Description=Brauzer monitoring agenti (foydalanuvchi roziligi bilan)
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/browser-agent --action run --server https://monitor.example.uz
+EnvironmentFile=%h/.config/browser-monitoring/service.env
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+UMask=0077
+
+[Install]
+WantedBy=default.target
