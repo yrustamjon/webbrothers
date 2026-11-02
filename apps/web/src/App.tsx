@@ -325,63 +325,17 @@ function HistoryView({
     </section>
   );
 }
-function Inventory({
-  device,
-  browser,
-  profile,
-}: {
-  device: string;
-  browser: string;
-  profile: string;
-}) {
-  const data = useQuery<{
-    items: { domain: string; username: string; credential_exists: boolean }[];
-  }>({
-    queryKey: ["inventory", device, browser, profile],
-    queryFn: async () =>
-      unwrap(
-        await queryAgent(device, "LOGIN_INVENTORY_QUERY", {
-          browser_id: browser,
-          profile_id: profile,
-        }),
-      ) as {
-        items: {
-          domain: string;
-          username: string;
-          credential_exists: boolean;
-        }[];
-      },
-  });
-  return (
-    <section>
-      <h2>Loginlar roʻyxati</h2>
-      <p>
-        Haqiqiy parollar koʻrsatilmaydi. Parollarni boshqarish uchun ushbu
-        kompyuterda brauzerning oʻz parol menejerini oching.
-      </p>
-      <ErrorBox error={data.error} />
-      {data.isFetching && <p>Olinmoqda…</p>}
-      {data.data && (
-        <ul>
-          {data.data.items.map((item, i) => (
-            <li key={i}>
-              {item.domain} · {item.username} ·{" "}
-              {item.credential_exists
-                ? "Saqlangan login mavjud"
-                : "Login mavjud emas"}
-            </li>
-          ))}
-        </ul>
-      )}
-      {data.data?.items.length === 0 && (
-        <p>Ruxsat etilgan login metamaʼlumotlari topilmadi.</p>
-      )}
-    </section>
-  );
-}
 export function Explorer({ device }: { device: Device }) {
   const selection = useSelection();
   const [tab, setTab] = useState("history");
+  const tabs = [
+    ...(device.scopes.includes("history.read") ? [["history", "Tarix"]] : []),
+    ...(device.operating_system === "linux" &&
+    device.scopes.includes("traffic.aggregate")
+      ? [["traffic", "Trafik"]]
+      : []),
+  ];
+  const activeTab = tabs.some(([key]) => key === tab) ? tab : tabs[0]?.[0];
   const browsers = useQuery<{ items: Browser[] }>({
     queryKey: ["browsers", device.id],
     queryFn: async () =>
@@ -473,22 +427,18 @@ export function Explorer({ device }: { device: Device }) {
                     role="tablist"
                     aria-label="Profil boʻlimlari"
                   >
-                    {[
-                      ["history", "Tarix"],
-                      ["inventory", "Loginlar"],
-                      ["traffic", "Trafik"],
-                    ].map(([key, label]) => (
+                    {tabs.map(([key, label]) => (
                       <button
                         key={key}
                         role="tab"
-                        aria-selected={tab === key}
+                        aria-selected={activeTab === key}
                         onClick={() => setTab(key)}
                       >
                         {label}
                       </button>
                     ))}
                   </div>
-                  {tab === "history" && (
+                  {activeTab === "history" && (
                     <HistoryView
                       key={`${device.id}-${selection.profile}`}
                       device={device.id}
@@ -496,14 +446,12 @@ export function Explorer({ device }: { device: Device }) {
                       profile={selectedProfile.id}
                     />
                   )}{" "}
-                  {tab === "inventory" && (
-                    <Inventory
-                      device={device.id}
-                      browser={selectedBrowser.id}
-                      profile={selectedProfile.id}
-                    />
-                  )}{" "}
-                  {tab === "traffic" && (
+                  {!tabs.length && (
+                    <p role="status">
+                      Bu profil uchun maʼlumot oʻqish ruxsati berilmagan.
+                    </p>
+                  )}
+                  {activeTab === "traffic" && (
                     <Suspense
                       fallback={
                         <p role="status">Trafik grafigi yuklanmoqda…</p>
