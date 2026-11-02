@@ -21,7 +21,10 @@ try {
     if ($choice -ne '1') { exit 0 }
     $serverFile = Join-Path $agentHome 'server.txt'
     if (Test-Path -LiteralPath $serverFile) { $server = (Get-Content -LiteralPath $serverFile -Raw).Trim() }
-    else { $server = Read-Host 'Saytning HTTPS manzili (masalan https://localhost:8443)' }
+    else {
+        $server = (Read-Host 'Saytning HTTPS manzili [https://localhost:8443]').Trim()
+        if ([string]::IsNullOrWhiteSpace($server)) { $server = 'https://localhost:8443' }
+    }
     $uri = $null
     if (-not [Uri]::TryCreate($server, [UriKind]::Absolute, [ref]$uri) -or $uri.Scheme -ne 'https' -or $uri.UserInfo -or $uri.Query -or $uri.Fragment) { throw 'HTTPS server manzili kerak.' }
     Write-Host "Server: $server"
