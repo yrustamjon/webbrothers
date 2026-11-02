@@ -1,19 +1,222 @@
-import {useState} from 'react';
-import {useQuery,useMutation} from '@tanstack/react-query';
-import {api,APIError} from './api';
-type Release={platform:string;architecture:string;filename:string;sha256:string;signature:string;download_url:string};
-const platforms=[['linux','Linux'],['darwin','macOS'],['windows','Windows']];
-export default function Downloads(){
- const [platform,setPlatform]=useState('linux');const [arch,setArch]=useState('amd64');
- const releases=useQuery<{items:Release[]}>({queryKey:['agent-releases'],queryFn:()=>api('/agent/releases')});
- const selected=releases.data?.items.find(item=>item.platform===platform&&item.architecture===arch);
- const download=useMutation({mutationFn:async(release:Release)=>{
-  const response=await fetch(`/api/v1/agent/download/${platform}/${arch}`,{credentials:'include',cache:'no-store'});
-  if(!response.ok){const error=await response.json().catch(()=>null);throw new APIError(response.status,typeof error?.detail==='string'?error.detail:'Agentni yuklab boʻlmadi.');}
-  const content=await response.arrayBuffer();const digest=await crypto.subtle.digest('SHA-256',content);const actual=Array.from(new Uint8Array(digest),n=>n.toString(16).padStart(2,'0')).join('');
-  if(actual!==release.sha256)throw new Error('Fayl nazorat summasi mos kelmadi. Yuklash bekor qilindi.');
-  const href=URL.createObjectURL(new Blob([content],{type:'application/octet-stream'}));const link=document.createElement('a');link.href=href;link.download=release.filename;link.click();setTimeout(()=>URL.revokeObjectURL(href),1000);
- }});
- const executable=platform==='windows'?`.\\bmp-agent-windows-${arch}.exe`:`./bmp-agent-${platform}-${arch}`;
- return <section className="panel"><h1>Agentni yuklab olish</h1><p>Faqat server nashr kaliti bilan Ed25519 imzosi tekshirilgan mavjud fayllar koʻrsatiladi. Yuklashda SHA-256 ham tekshiriladi.</p><div className="filters"><label>Operatsion tizim<select value={platform} onChange={e=>{setPlatform(e.target.value);download.reset();}}>{platforms.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label>Protsessor arxitekturasi<select value={arch} onChange={e=>{setArch(e.target.value);download.reset();}}><option value="amd64">x86-64 (amd64)</option><option value="arm64">ARM64</option></select></label><button className="secondary" onClick={()=>releases.refetch()}>Roʻyxatni yangilash</button></div>{releases.isPending&&<p role="status">Imzolangan nashrlar tekshirilmoqda…</p>}{releases.error&&<p role="alert" className="error">{releases.error.message}</p>}{releases.data&&!selected&&<p role="status">Tanlangan tizim uchun imzolangan agent paketi hali mavjud emas. Administrator nashrni tayyorlashi kerak.</p>}{selected&&<article className="release"><h2>{selected.filename}</h2><p><strong>SHA-256</strong></p><code>{selected.sha256}</code><details><summary>Ed25519 imzosi</summary><code>{selected.signature}</code></details><button onClick={()=>download.mutate(selected)} disabled={download.isPending}>{download.isPending?'Tekshirilmoqda va yuklanmoqda…':'Tekshirilgan agentni yuklab olish'}</button></article>}{download.error&&<p role="alert" className="error">{download.error.message}</p>}{download.isSuccess&&<p role="status">Fayl tekshirildi va yuklash boshlandi.</p>}<h2>Oʻrnatish va ulash</h2><ol><li>Faqat oʻzingiz boshqaradigan OS foydalanuvchisi nomidan ishga tushiring. Agentni root yoki boshqa foydalanuvchi nomidan boshlamang.</li><li><code>BROWSER_AGENT_KEY_PASSPHRASE</code> mahalliy sirini kamida 16 belgili qiymat bilan OS maxfiy saqlash vositasi orqali taʼminlang. Sirni chatga, kodga yoki shell tarixiga yozmang.</li><li>{platform!=='windows'&&<>Faylni bajariladigan qiling: <code>chmod u+x bmp-agent-{platform}-{arch}</code>. </>}Quyidagi buyruqda server manzilini oʻzingizning HTTPS manzilingizga almashtiring. TLS sertifikati haqiqiy va ishonchli boʻlishi kerak.</li></ol><pre>{`${executable} --action pair --server https://SIZNING-SERVERINGIZ --scopes browser.discovery,profile.discovery,history.read,traffic.aggregate\n${executable} --action run --server https://SIZNING-SERVERINGIZ`}</pre><p>Agent koʻrsatgan kodni “Qurilma ulash” boʻlimida tasdiqlang. Mahalliy ruxsatlar bilan dashboarddagi ruxsatlar mos boʻlishi kerak.</p><h3>Xizmat sifatida ishlash</h3>{platform==='linux'?<p>Linux uchun loyiha <code>installers/linux/browser-monitoring.service</code> faylida foydalanuvchi systemd namunasi mavjud. Server yoʻli va himoyalangan mahalliy sir muhitini sozlang. Bu avtomatik installer emas. Toʻxtatish: <code>systemctl --user disable --now browser-monitoring</code>. systemd mavjud boʻlmasa <code>--action run</code> foreground rejimidan foydalaning.</p>:platform==='darwin'?<p>macOS LaunchAgent namunasi loyiha <code>installers/macos/</code> katalogida. Keychain orqali sir yetkazish va haqiqiy macOS sinovi talab qilinadi. Hozir foreground rejimi uchun koʻrsatmalar berilgan; avtomatik oʻrnatilgan xizmat deb hisoblamang.</p>:<p>Windows Service integratsiyasi hali mavjud emas. Agent hozir foreground rejimida ishlaydi; toʻxtatish uchun Ctrl+C. Avtomatik xizmat sifatida ishga tushish vaʼda qilinmaydi.</p>}<p className="muted">Linux trafik yigʻindisi qoʻllanadi; Windows/macOS trafik va Safari tarixi hali qoʻllanmaydi. Login inventari hozir qoʻllanmaydi. Paket mavjudligi OS sinovidan oʻtganlik kafolati emas.</p><h3>Oʻchirish</h3><p>Dashboardda qurilma ruxsatini bekor qiling, jarayon yoki foydalanuvchi xizmatini toʻxtating, soʻng binar, xizmat sozlamalari va shifrlangan mahalliy identifikatorni oʻchiring. Yashirin oʻrnatish yoki toʻxtatishni cheklash yoʻq.</p></section>;
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { api, APIError } from "./api";
+type Release = {
+  version?: string;
+  platform: string;
+  architecture: string;
+  filename: string;
+  sha256: string;
+  signature: string;
+  download_url: string;
+};
+const platforms = [
+  ["linux", "Linux"],
+  ["darwin", "macOS"],
+  ["windows", "Windows"],
+];
+export default function Downloads() {
+  const [platform, setPlatform] = useState("linux");
+  const [arch, setArch] = useState("amd64");
+  const releases = useQuery<{ items: Release[] }>({
+    queryKey: ["agent-releases"],
+    queryFn: () => api("/agent/releases"),
+  });
+  const selected = releases.data?.items.find(
+    (item) => item.platform === platform && item.architecture === arch,
+  );
+  const download = useMutation({
+    mutationFn: async (release: Release) => {
+      const response = await fetch(
+        `/api/v1/agent/download/${platform}/${arch}`,
+        { credentials: "include", cache: "no-store" },
+      );
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new APIError(
+          response.status,
+          typeof error?.detail === "string"
+            ? error.detail
+            : "Agentni yuklab boʻlmadi.",
+        );
+      }
+      const content = await response.arrayBuffer();
+      const digest = await crypto.subtle.digest("SHA-256", content);
+      const actual = Array.from(new Uint8Array(digest), (n) =>
+        n.toString(16).padStart(2, "0"),
+      ).join("");
+      if (actual !== release.sha256)
+        throw new Error(
+          "Fayl nazorat summasi mos kelmadi. Yuklash bekor qilindi.",
+        );
+      const href = URL.createObjectURL(
+        new Blob([content], { type: "application/octet-stream" }),
+      );
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = release.filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(href), 1000);
+    },
+  });
+  const executable =
+    platform === "windows"
+      ? `.\\bmp-agent-windows-${arch}.exe`
+      : `./bmp-agent-${platform}-${arch}`;
+  return (
+    <section className="panel">
+      <h1>Agentni yuklab olish</h1>
+      <p>
+        Faqat server nashr kaliti bilan platforma, arxitektura, versiya va fayl
+        summasiga bogʻlangan Ed25519 manifesti tekshirilgan nashrlar
+        koʻrsatiladi. Yuklashda SHA-256 ham tekshiriladi.
+      </p>
+      <div className="filters">
+        <label>
+          Operatsion tizim
+          <select
+            value={platform}
+            onChange={(e) => {
+              setPlatform(e.target.value);
+              download.reset();
+            }}
+          >
+            {platforms.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Protsessor arxitekturasi
+          <select
+            value={arch}
+            onChange={(e) => {
+              setArch(e.target.value);
+              download.reset();
+            }}
+          >
+            <option value="amd64">x86-64 (amd64)</option>
+            <option value="arm64">ARM64</option>
+          </select>
+        </label>
+        <button className="secondary" onClick={() => releases.refetch()}>
+          Roʻyxatni yangilash
+        </button>
+      </div>
+      {releases.isPending && (
+        <p role="status">Imzolangan nashrlar tekshirilmoqda…</p>
+      )}
+      {releases.error && (
+        <p role="alert" className="error">
+          {releases.error.message}
+        </p>
+      )}
+      {releases.data && !selected && (
+        <p role="status">
+          Tanlangan tizim uchun imzolangan agent paketi hali mavjud emas.
+          Administrator nashrni tayyorlashi kerak.
+        </p>
+      )}
+      {selected && (
+        <article className="release">
+          <h2>{selected.filename}</h2>
+          {selected.version && <p>Versiya: {selected.version}</p>}
+          <p>
+            <strong>SHA-256</strong>
+          </p>
+          <code>{selected.sha256}</code>
+          <details>
+            <summary>Manifestning Ed25519 imzosi</summary>
+            <code>{selected.signature}</code>
+          </details>
+          <button
+            onClick={() => download.mutate(selected)}
+            disabled={download.isPending}
+          >
+            {download.isPending
+              ? "Tekshirilmoqda va yuklanmoqda…"
+              : "Tekshirilgan agentni yuklab olish"}
+          </button>
+        </article>
+      )}
+      {download.error && (
+        <p role="alert" className="error">
+          {download.error.message}
+        </p>
+      )}
+      {download.isSuccess && (
+        <p role="status">Fayl tekshirildi va yuklash boshlandi.</p>
+      )}
+      <h2>Oʻrnatish va ulash</h2>
+      <ol>
+        <li>
+          Faqat oʻzingiz boshqaradigan OS foydalanuvchisi nomidan ishga
+          tushiring. Agentni root yoki boshqa foydalanuvchi nomidan boshlamang.
+        </li>
+        <li>
+          <code>BROWSER_AGENT_KEY_PASSPHRASE</code> mahalliy sirini kamida 16
+          belgili qiymat bilan OS maxfiy saqlash vositasi orqali taʼminlang.
+          Sirni chatga, kodga yoki shell tarixiga yozmang.
+        </li>
+        <li>
+          {platform !== "windows" && (
+            <>
+              Faylni bajariladigan qiling:{" "}
+              <code>
+                chmod u+x bmp-agent-{platform}-{arch}
+              </code>
+              .{" "}
+            </>
+          )}
+          Quyidagi buyruqda server manzilini oʻzingizning HTTPS manzilingizga
+          almashtiring. TLS sertifikati haqiqiy va ishonchli boʻlishi kerak.
+        </li>
+      </ol>
+      <pre>{`${executable} --action pair --server https://SIZNING-SERVERINGIZ --scopes browser.discovery,profile.discovery,history.read,traffic.aggregate\n${executable} --action run --server https://SIZNING-SERVERINGIZ`}</pre>
+      <p>
+        Agent koʻrsatgan kodni “Qurilma ulash” boʻlimida tasdiqlang. Mahalliy
+        ruxsatlar bilan dashboarddagi ruxsatlar mos boʻlishi kerak.
+      </p>
+      <h3>Xizmat sifatida ishlash</h3>
+      {platform === "linux" ? (
+        <p>
+          Linux uchun loyiha{" "}
+          <code>installers/linux/browser-monitoring.service</code> faylida
+          foydalanuvchi systemd namunasi mavjud. Server yoʻli va himoyalangan
+          mahalliy sir muhitini sozlang. Bu avtomatik installer emas.
+          Toʻxtatish:{" "}
+          <code>systemctl --user disable --now browser-monitoring</code>.
+          systemd mavjud boʻlmasa <code>--action run</code> foreground rejimidan
+          foydalaning.
+        </p>
+      ) : platform === "darwin" ? (
+        <p>
+          macOS LaunchAgent namunasi loyiha <code>installers/macos/</code>{" "}
+          katalogida. Keychain orqali sir yetkazish va haqiqiy macOS sinovi
+          talab qilinadi. Hozir foreground rejimi uchun koʻrsatmalar berilgan;
+          avtomatik oʻrnatilgan xizmat deb hisoblamang.
+        </p>
+      ) : (
+        <p>
+          Windows Service integratsiyasi hali mavjud emas. Agent hozir
+          foreground rejimida ishlaydi; toʻxtatish uchun Ctrl+C. Avtomatik
+          xizmat sifatida ishga tushish vaʼda qilinmaydi.
+        </p>
+      )}
+      <p className="muted">
+        Linux trafik yigʻindisi qoʻllanadi; Windows/macOS trafik va Safari
+        tarixi hali qoʻllanmaydi. Login inventari hozir qoʻllanmaydi. Paket
+        mavjudligi OS sinovidan oʻtganlik kafolati emas.
+      </p>
+      <h3>Oʻchirish</h3>
+      <p>
+        Dashboardda qurilma ruxsatini bekor qiling, jarayon yoki foydalanuvchi
+        xizmatini toʻxtating, soʻng binar, xizmat sozlamalari va shifrlangan
+        mahalliy identifikatorni oʻchiring. Yashirin oʻrnatish yoki toʻxtatishni
+        cheklash yoʻq.
+      </p>
+    </section>
+  );
 }
