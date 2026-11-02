@@ -110,9 +110,33 @@ def main():
             traffic = call(owner,path,{'type':'TRAFFIC_STATS_REQUEST','params':{}},csrf)
             stats = traffic.get('payload',traffic)
             assert stats['received_bytes']>=0 and stats['sent_bytes']>=0
+            runner.terminate()
+            runner.wait(timeout=5)
+            deadline = time.monotonic()+10
+            while time.monotonic()<deadline:
+                item = next(d for d in call(owner,'/devices')['items'] if d['id']==device_id)
+                if item['status']=='offline': break
+                time.sleep(.25)
+            else: raise AssertionError('Uzilgan agent oflayn boʻlmadi')
+            runner = subprocess.Popen(common+['--action','run'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            deadline = time.monotonic()+10
+            while time.monotonic()<deadline:
+                item = next(d for d in call(owner,'/devices')['items'] if d['id']==device_id)
+                if item['status']=='online': break
+                time.sleep(.25)
+            else: raise AssertionError('Agent qayta ulanmadi')
+            call(owner,path,query,csrf)
             call(owner,f'/devices/{device_id}/revoke',{},csrf)
             call(owner,path,query,csrf,expected=404)
-            print('PASS: HTTPS hisob/sessiya, CSRF, bir martalik ulash, haqiqiy WSS Go agent, profil/tarix fixture, real trafik, begona hisob bloklanishi, bekor qilish')
+            runner.terminate()
+            runner.wait(timeout=5)
+            runner = subprocess.Popen(common+['--action','run'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            # Bekor qilingan haqiqiy kalit/token bilan qayta urinish ham rad etiladi.
+            for _ in range(12):
+                item = next(d for d in call(owner,'/devices')['items'] if d['id']==device_id)
+                assert item['status']=='revoked', 'Bekor qilingan agent yana onlayn boʻldi'
+                time.sleep(.25)
+            print('PASS: HTTPS sessiya, CSRF, bir martalik ulash, haqiqiy WSS Go agent, sintetik tarix, real trafik, begona hisob bloklanishi, oflayn/qayta ulanish, bekor qilingan agent qayta ulana olmaydi')
         finally:
             for process in (pairing,runner):
                 if process is not None and process.poll() is None:
