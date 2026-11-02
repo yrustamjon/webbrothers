@@ -131,11 +131,22 @@ def test_email_verification_and_reset(client,monkeypatch):
             assert c.post('/api/v1/auth/login',json={'email':'one@example.com','password':'new-password-secure'}).status_code==200
 
 def test_release_signature_verification(tmp_path):
-    from bmp.releases import verified_release
+    from bmp.releases import verified_release, canonical_manifest
+    import hashlib,json
     filename='bmp-agent-linux-amd64'; content=b'synthetic-test-agent'
+    manifest={'version':'1.2.3','platform':'linux','architecture':'amd64','filename':filename,'sha256':hashlib.sha256(content).hexdigest()}
     (tmp_path/filename).write_bytes(content)
-    (tmp_path/(filename+'.sig')).write_text(base64.b64encode(KEY.sign(content)).decode())
+    (tmp_path/(filename+'.manifest.json')).write_text(json.dumps(manifest))
+    signature=base64.b64encode(KEY.sign(canonical_manifest(manifest))).decode()
+    (tmp_path/(filename+'.sig')).write_text(signature)
     assert verified_release(str(tmp_path),PUBLIC,'linux','amd64')['content']==content
+    windows='bmp-agent-windows-amd64.exe'
+    for suffix in ('','.manifest.json','.sig'):
+        (tmp_path/(windows+suffix)).write_bytes((tmp_path/(filename+suffix)).read_bytes())
+    assert verified_release(str(tmp_path),PUBLIC,'windows','amd64') is None
+    manifest.update(platform='windows',filename=windows)
+    (tmp_path/(windows+'.manifest.json')).write_text(json.dumps(manifest))
+    assert verified_release(str(tmp_path),PUBLIC,'windows','amd64') is None
     (tmp_path/filename).write_bytes(b'tampered')
     assert verified_release(str(tmp_path),PUBLIC,'linux','amd64') is None
     assert verified_release(str(tmp_path),PUBLIC,'../../etc','passwd') is None

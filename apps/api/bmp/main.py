@@ -234,7 +234,7 @@ def create_app(settings=None):
         items=[]
         for platform,architecture in TARGETS:
             item=verified_release(config.release_directory,config.release_public_key,platform,architecture)
-            if item: items.append({'platform':platform,'architecture':architecture,'filename':item['filename'],'sha256':item['sha256'],'signature':item['signature'],'download_url':f'/api/v1/agent/download/{platform}/{architecture}'})
+            if item: items.append({'platform':platform,'architecture':architecture,'filename':item['filename'],'version':item['version'],'sha256':item['sha256'],'signature':item['signature'],'download_url':f'/api/v1/agent/download/{platform}/{architecture}'})
         return {'items':items}
     @app.get('/api/v1/agent/download/{platform}/{architecture}')
     def download(platform: str, architecture: str, identity=Depends(auth)):

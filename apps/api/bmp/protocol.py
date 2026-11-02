@@ -23,8 +23,8 @@ class QueryParams(Strict):
     browser_id: str | None = Field(default=None,max_length=128)
     profile_id: str | None = Field(default=None,max_length=128)
     search: str = Field(default='',max_length=200)
-    page: int = Field(default=1,ge=1,le=100000)
-    page_size: int = Field(default=50,ge=1,le=200)
+    page: int = Field(default=1,strict=True,ge=1,le=100000)
+    page_size: int = Field(default=50,strict=True,ge=1,le=200)
     start: datetime | None = None
     end: datetime | None = None
     sort: Literal['asc','desc'] = 'desc'
