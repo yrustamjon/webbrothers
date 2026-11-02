@@ -20,4 +20,10 @@ Brauzer: {id,name,profiles:[{id,name}]}; tarix: {items:[{url,title,visited_at,do
 Backend apps/api; frontend apps/web; agent agent va installers; xavfsizlik packages/security; QA infrastructure, tests, scripts, .github. Har biri alohida Git worktree/branch; faqat orkestrator integratsiya qiladi.
 
 ## Muhit cheklovi
-Linux, Python 3.12, Node 24 va Go mavjud. Tarmoq proksi ulanishi ishlamayapti; tashqi paketlarni yuklash imkoniyati tekshiriladi. Windows/macOS ijrosi bu muhitda tekshirilmaydi.
+Linux, Python 3.12, Node 24 va Go mavjud. Paket yuklash uchun sandbox tashqarisidagi ruxsatli ijro talab qilinadi; TLS va modul tekshiruvi oʻchirilmaydi. Windows/macOS ijrosi bu muhitda tekshirilmaydi.
+
+## Qurilma kaliti isboti
+Bearer token tekshirilgach server har yangi WSS ulanishi uchun 15 soniyalik, bir marta ishlatiladigan AUTH_CHALLENGE nonce yuboradi. Agent Ed25519 bilan `BMP-AGENT-AUTH-V1\n{device_id}\n{nonce}` baytlarini imzolab AUTH_PROOF qaytaradi. Server imzo va bekor qilingan holatni tekshirmaguncha agent onlayn deb belgilanmaydi, soʻrov berilmaydi. Tokenning oʻzi yetarli emas. `packages/protocol/auth.schema.json` ushbu alohida autentifikatsiya almashinuvini tasvirlaydi.
+
+## Rozilik boshqaruvi
+Juftlashdagi asl ruxsatlar yuqori chegara sifatida saqlanadi. Dashboard faqat shular ichida faol toifalarni oʻzgartiradi yoki kuzatishni pauzaga oladi. Toraytirish/pauza kutilayotgan javoblarni bekor qiladi va WSS kanalini yopadi. Agent ham mahalliy berilgan va server tasdiqlagan ruxsatlar kesishmasini tekshiradi. Yangi toifa uchun qayta aniq juftlash talab qilinadi.
