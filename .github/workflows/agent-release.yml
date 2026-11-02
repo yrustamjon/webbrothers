@@ -1,0 +1,126 @@
+name: Agent installer relizi
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'agent/**'
+      - 'installers/**'
+      - 'scripts/package-agent-*'
+      - '.github/workflows/agent-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-installers
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            platform: darwin
+            arch: amd64
+          - runner: macos-15
+            platform: darwin
+            arch: arm64
+          - runner: windows-latest
+            platform: windows
+            arch: amd64
+    runs-on: ${{ matrix.runner }}
+    env:
+      CGO_ENABLED: '1'
+      VERSION: 0.1.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Native agent tests
+        working-directory: agent
+        run: go test -race ./...
+      - name: Native agent vet
+        working-directory: agent
+        run: go vet ./...
+      - name: Build macOS
+        if: matrix.platform == 'darwin'
+        working-directory: agent
+        run: go build -buildvcs=false -o bin/browser-agent ./cmd/browser-agent
+      - name: Package macOS
+        if: matrix.platform == 'darwin'
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: bash scripts/package-agent-macos.sh "$VERSION" "$ARCH" agent/bin/browser-agent release-dist
+      - name: Build Windows
+        if: matrix.platform == 'windows'
+        working-directory: agent
+        run: go build -buildvcs=false -o bin/browser-agent.exe ./cmd/browser-agent
+      - name: Package Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PATH += ';C:\Program Files (x86)\Inno Setup 6'
+          if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
+            choco install innosetup --no-progress -y
+          }
+          ./scripts/package-agent-windows.ps1 -Version $env:VERSION -BinaryPath agent/bin/browser-agent.exe -OutputDirectory release-dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.platform }}-${{ matrix.arch }}
+          path: release-dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_SHA: ${{ github.sha }}
+      VERSION: 0.1.${{ github.run_number }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installer-*
+          merge-multiple: true
+          path: release-dist
+      - name: Publish complete release atomically
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A newer main commit must never be replaced by an older build.
+          latest_sha="$(gh api "repos/$GH_REPO/commits/main" --jq .sha)"
+          if [ "$latest_sha" != "$RELEASE_SHA" ]; then
+            echo 'Newer main commit exists; this build stays an Actions artifact.'
+            exit 0
+          fi
+          cd release-dist
+          test -s bmp-agent-darwin-amd64.dmg
+          test -s bmp-agent-darwin-arm64.dmg
+          test -s bmp-agent-windows-amd64-setup.exe
+          sha256sum bmp-agent-* > SHA256SUMS
+          cat > release-notes.md <<'NOTES'
+          Windows x86-64 va macOS Intel/Apple Silicon uchun installerlar.
+
+          Agent faqat joriy foydalanuvchi tomonidan ochilib, ulash va mahalliy ruxsatlar tasdiqlangach ishlaydi. Yangilashdan oldin ishlayotgan agentni to‘xtating, yangi installerni o‘rnating; mahalliy sozlamalar va shifrlangan identifikator saqlanadi.
+
+          Ushbu paketlar Apple Developer ID/notarization va Windows Authenticode bilan imzolanmagan. OS ogohlantirishi chiqishi mumkin. CI sinovi haqiqiy foydalanuvchi kompyuteridagi amaliy sinov o‘rnini bosmaydi. Windows/macOS trafik va Safari tarixi qo‘llanmaydi.
+          NOTES
+          tag="agent-v$VERSION"
+          # Draft assets are invisible to /releases/latest until all uploads succeed.
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$RELEASE_SHA" --draft --title "Agent $VERSION" --notes-file release-notes.md
+          else
+            test "$(gh release view "$tag" --json isDraft --jq .isDraft)" = true
+          fi
+          gh release upload "$tag" bmp-agent-* SHA256SUMS --clobber
+          gh release edit "$tag" --draft=false --latest

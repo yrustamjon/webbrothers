@@ -37,6 +37,7 @@ from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import sessionmaker
 
 from .config import Settings
+from .installers import latest_installers
 from .models import AccountToken, Audit, Base, Device, Enrollment, Session, User
 from .protocol import (
     SCOPES,
@@ -529,6 +530,10 @@ def create_app(settings=None):
             if key[0] == d.id and not future[0].done():
                 future[0].set_exception(ConnectionError())
         return {"message": "Qurilma ruxsati bekor qilindi"}
+
+    @app.get("/api/v1/agent/installers")
+    def installers(identity=Depends(auth)):
+        return latest_installers()
 
     @app.get("/api/v1/agent/releases")
     def releases(identity=Depends(auth)):

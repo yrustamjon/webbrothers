@@ -365,6 +365,16 @@ def test_release_endpoint_empty_honestly(client):
     assert client.get("/api/v1/agent/download/linux/amd64").status_code == 404
 
 
+def test_latest_installer_endpoint_requires_login(client, monkeypatch):
+    expected = {"items": [], "status": "unavailable"}
+    monkeypatch.setattr("bmp.main.latest_installers", lambda: expected)
+    assert client.get("/api/v1/agent/installers").status_code == 401
+    account(client)
+    response = client.get("/api/v1/agent/installers")
+    assert response.status_code == 200
+    assert response.json() == expected
+
+
 def test_origin_and_key_rejection(client):
     assert (
         client.post(
