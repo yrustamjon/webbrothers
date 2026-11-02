@@ -1,0 +1,18 @@
+# docker compose -f docker-compose.yml -f infrastructure/deployment/production.yml up -d
+services:
+  migrate:
+    environment:
+      BMP_DEVELOPMENT: '0'
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?HTTPS domenini sozlang}
+  api:
+    environment:
+      BMP_DEVELOPMENT: '0'
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?HTTPS domenini sozlang}
+  tls:
+    image: nginx:1.28-alpine
+    ports: [443:443]
+    volumes:
+      - ./infrastructure/nginx/production.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${TLS_DIRECTORY:?Sertifikat katalogini sozlang}:/etc/nginx/tls:ro
+    depends_on: [web]
+    restart: unless-stopped
