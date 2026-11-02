@@ -10,7 +10,20 @@ Oʻzingizga tegishli kompyuterdagi, aniq ruxsat berilgan brauzer maʼlumotlarini
 - `packages/security`: qatʼiy protokol validatsiyasi, qayta ijrodan himoya, Ed25519 autentifikatsiya.
 - `infrastructure`, `scripts`, `.github`: Docker, TLS 1.3 proksi, tekshiruvlar va CI.
 
-## Ishlab chiqishni boshlash
+## Lokal kompyuterda tez boshlash (macOS)
+
+Docker, PostgreSQL va Redis talab qilinmaydi. Bir martalik vositalar va HTTPS sertifikatini tayyorlash uchun [macOS qoʻllanmasi](docs/macos.md)ga qarang. Keyin:
+
+```sh
+bash scripts/setup-local.sh
+bash start-local.command
+```
+
+Brauzerda **https://localhost:8443** ni oching va hisob yarating. Keyingi safar `start-local.command` faylini ikki marta bosish yoki `bash start-local.command` yetarli. Server terminali ochiq tursin; toʻxtatish uchun Ctrl+C bosing.
+
+Qurilmani ulash uchun boshqa terminalda `bash scripts/agent-local.sh pair` bajaring va kodni dashboardda tasdiqlang. Soʻng `bash scripts/agent-local.sh run` bajaring. Bu buyruqlar brauzer/profilni aniqlash va tarixni oʻqish ruxsatlarini beradi; ularni faqat roziligingiz bilan bajaring. Batafsil ruxsatlar va cheklovlar macOS qoʻllanmasida berilgan.
+
+## Docker bilan boshlash
 
 Docker Engine va Compose v2 kerak. `.env.example` nusxasidan `.env` yarating; `POSTGRES_PASSWORD` uchun `openssl rand -hex 32` orqali yangi qiymat yarating. Keyin:
 

@@ -105,7 +105,11 @@ func post(ctx context.Context, server, path string, in, out any) error {
 		return e
 	}
 	req.Header.Set("Content-Type", "application/json")
-	r, e := transport.Client().Do(req)
+	client, e := transport.Client()
+	if e != nil {
+		return e
+	}
+	r, e := client.Do(req)
 	if e != nil {
 		return errors.New("HTTPS serveriga ulanib boʻlmadi")
 	}

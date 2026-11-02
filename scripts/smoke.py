@@ -10,6 +10,7 @@ import secrets
 import sqlite3
 import ssl
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -50,7 +51,11 @@ def main():
     other_csrf = account(outsider)
     with tempfile.TemporaryDirectory(prefix='bmp-smoke-') as directory:
         root = Path(directory)
-        profile = root/'.config/google-chrome/Default'
+        chrome_root = {
+            'darwin': 'Library/Application Support/Google/Chrome',
+            'win32': 'AppData/Local/Google/Chrome/User Data',
+        }.get(sys.platform, '.config/google-chrome')
+        profile = root/chrome_root/'Default'
         profile.mkdir(parents=True)
         (profile.parent/'Local State').write_text(json.dumps({'profile':{'info_cache':{'Default':{'name':'QA profili'}}}}))
         with sqlite3.connect(profile/'History') as db:
@@ -107,9 +112,10 @@ def main():
             history = call(owner,path,{'type':'HISTORY_QUERY','params':{'browser_id':chrome['id'],'profile_id':profiles[0]['id'],'search':'synthetic.example.test','page':1,'page_size':10}},csrf)
             history_payload = history.get('payload',history)
             assert any(x['url']=='https://synthetic.example.test/qa' for x in history_payload['items']), 'Haqiqiy fixture tarixi qaytmadi'
-            traffic = call(owner,path,{'type':'TRAFFIC_STATS_REQUEST','params':{}},csrf)
-            stats = traffic.get('payload',traffic)
-            assert stats['received_bytes']>=0 and stats['sent_bytes']>=0
+            if sys.platform.startswith('linux'):
+                traffic = call(owner,path,{'type':'TRAFFIC_STATS_REQUEST','params':{}},csrf)
+                stats = traffic.get('payload',traffic)
+                assert stats['received_bytes']>=0 and stats['sent_bytes']>=0
             runner.terminate()
             runner.wait(timeout=5)
             deadline = time.monotonic()+10
@@ -136,7 +142,8 @@ def main():
                 item = next(d for d in call(owner,'/devices')['items'] if d['id']==device_id)
                 assert item['status']=='revoked', 'Bekor qilingan agent yana onlayn boʻldi'
                 time.sleep(.25)
-            print('PASS: HTTPS sessiya, CSRF, bir martalik ulash, haqiqiy WSS Go agent, sintetik tarix, real trafik, begona hisob bloklanishi, oflayn/qayta ulanish, bekor qilingan agent qayta ulana olmaydi')
+            print('PASS: HTTPS sessiya, CSRF, bir martalik ulash, haqiqiy WSS Go agent, sintetik tarix, begona hisob bloklanishi, oflayn/qayta ulanish, bekor qilingan agent qayta ulana olmaydi')
+            print('Trafik: Linuxda tekshirildi' if sys.platform.startswith('linux') else 'Trafik: bu OSda qoʻllanmaydi; sinov oʻtkazilmadi')
         finally:
             for process in (pairing,runner):
                 if process is not None and process.poll() is None:

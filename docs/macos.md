@@ -32,6 +32,8 @@ bash scripts/setup-local.sh
 bash scripts/dev-local.sh
 ```
 
+Keyingi safar Finder orqali `start-local.command` faylini ikki marta bosishingiz yoki terminalda `bash start-local.command` bajarishingiz mumkin. Yetishmayotgan yigʻilgan fayllar boʻlsa launcher avval setupni bajaradi.
+
 `mkcert -install` faqat mahalliy ishlab chiqish uchun oʻzingizning CA sertifikatingizni macOS ishonch omboriga qoʻshadi; tizim tasdiqlash oynasi chiqishi mumkin. Bu vosita HTTPSni ushlab olish uchun ishlatilmaydi, faqat shu mahalliy server sertifikatini beradi. CAning maxfiy kalitini boshqalarga yubormang.
 
 Setup `.venv` ichiga Python API paketlarini oʻrnatadi, frontendni `npm ci` orqali tayyorlab yigʻadi va agentni `agent/bin/browser-agent` ga mahalliy CGO bilan yigʻadi. Dastlabki tayyorlash uchun internet kerak. Launcher `.local/tls/` ichida mahalliy sertifikatlarni tayyorlaydi, `.local/metadata.db` SQLite bazasini yaratadi va API bilan yigʻilgan frontendni **bir xil server jarayonida** boshlaydi.
@@ -80,6 +82,8 @@ npm --prefix apps/web run build
 ```
 
 Bu testlar avtomatlashtirilgan kod tekshiruvlari; haqiqiy macOS brauzer profili, mahalliy huquqlar va xizmat ishlashini alohida tekshirish zarur.
+
+`scripts/smoke.py` macOSda ham vaqtinchalik sunʼiy Chrome profili bilan ishlaydi. Trafik yigʻish faqat Linuxda tekshiriladi; macOSda bu funksiya qoʻllanmaydi.
 
 ## macOSdagi haqiqiy imkoniyatlar va cheklovlar
 

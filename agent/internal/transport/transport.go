@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"errors"
 	"github.com/gorilla/websocket"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 	"webbrothers/agent/internal/protocol"
@@ -22,8 +24,30 @@ func Endpoint(server, path string) (string, error) {
 	u.Path = strings.TrimRight(u.Path, "/") + path
 	return u.String(), nil
 }
-func Client() *http.Client {
-	return &http.Client{Timeout: 15 * time.Second, Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS13}}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+func tlsConfig() (*tls.Config, error) {
+	config := &tls.Config{MinVersion: tls.VersionTLS13}
+	if path := os.Getenv("SSL_CERT_FILE"); path != "" {
+		pem, err := os.ReadFile(path)
+		if err != nil {
+			return nil, errors.New("Mahalliy CA faylini oʻqib boʻlmadi")
+		}
+		pool, err := x509.SystemCertPool()
+		if err != nil {
+			pool = x509.NewCertPool()
+		}
+		if !pool.AppendCertsFromPEM(pem) {
+			return nil, errors.New("Mahalliy CA sertifikati yaroqsiz")
+		}
+		config.RootCAs = pool
+	}
+	return config, nil
+}
+func Client() (*http.Client, error) {
+	config, err := tlsConfig()
+	if err != nil {
+		return nil, err
+	}
+	return &http.Client{Timeout: 15 * time.Second, Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: config}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, nil
 }
 func Dial(ctx context.Context, server, token string) (*websocket.Conn, error) {
 	s, e := Endpoint(server, "/api/v1/ws/agent")
@@ -32,7 +56,11 @@ func Dial(ctx context.Context, server, token string) (*websocket.Conn, error) {
 	}
 	u, _ := url.Parse(s)
 	u.Scheme = "wss"
-	d := websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: 15 * time.Second, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS13}}
+	config, e := tlsConfig()
+	if e != nil {
+		return nil, e
+	}
+	d := websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: 15 * time.Second, TLSClientConfig: config}
 	h := http.Header{}
 	h.Set("Authorization", "Bearer "+token)
 	c, _, e := d.DialContext(ctx, u.String(), h)
