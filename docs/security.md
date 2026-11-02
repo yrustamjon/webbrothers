@@ -6,7 +6,7 @@ Agent faqat qurilma egasi ochiq tasdiqlagan toifalarni oʻqiydi. Server har soʻ
 
 ## Protokol kutubxonasi
 
-`packages/security/bmp_security` tashqi bogʻliqliksiz Python 3.12 kutubxonasi. Ishga tushirish: `PYTHONPATH=packages/security python3 -m unittest discover -s packages/security/tests -v`.
+`packages/security/bmp_security` protokol tekshiruvi uchun tashqi bogʻliqliksiz Python 3.12 kutubxonasi; qurilma imzosini tekshirish `cryptography` kutubxonasidan foydalanadi. Ishga tushirish: `PYTHONPATH=packages/security python3 -m unittest discover -s packages/security/tests -v`.
 
 `validate_request(raw, authenticated_device_id, granted_scopes)` aniq maydonlarni, tur/scope mosligini, qurilma identifikatorini, 30 soniyadan uzun boʻlmagan amal qilish muddatini, vaqt zonasini, parametrlar roʻyxatini va 1 MiB chegarani tekshiradi. JSON takroriy maydonlari va NaN qiymati rad etiladi. `ReplayGuard.accept` tekshirilgan soʻrov identifikatorini muddati tugaguncha eslab qoladi; joy toʻlsa tirik yozuvlarni oʻchirish oʻrniga yangi soʻrovni rad etadi. Har autentifikatsiyalangan agent sessiyasi uchun alohida guard ishlating.
 
@@ -28,3 +28,7 @@ Agent faqat qurilma egasi ochiq tasdiqlagan toifalarni oʻqiydi. Server har soʻ
 ## Ishlab chiqarishga chiqarishdan oldin
 
 Haqiqiy TLS/WSS integratsiyasi, ikki hisob orasida access denial, pairing replay, revoked qurilma qayta ulanishi, maxfiy payloadlarning log/DBga tushmasligi, sessiya tugashi va CSRF sinovlari bajarilishi kerak. Release signing uchun tashkilot kaliti/sertifikati xavfsiz CI secret storage da boʻlishi zarur. Windows/macOS secret storage va installer imzolari oʻsha platformada tekshirilmaguncha qoʻllab-quvvatlangan deb belgilanmaydi. Kalit aylantirish va qurilma proof-of-possession alohida tekshirilishi kerak.
+
+## Qurilma kalitiga egalik isboti
+
+Bearer autentifikatsiyasidan keyin server `DeviceChallenge(device_id)` yaratadi va `message()` natijasini shu socketga yuboradi. Agent `BMP-AGENT-AUTH-V1\n<device_id>\n<nonce>` ASCII baytlarini mahalliy Ed25519 kaliti bilan imzolaydi va AUTH_PROOF xabarini yuboradi. `verify(raw, stored_public_key)` 15 soniyada, faqat bir urinishda, shu nonce/device/key mosligini tekshiradi. Notoʻgʻri urinish ham challenge ni isteʼmol qiladi. Connection manager qurilmani faqat muvaffaqiyatdan keyin online deb roʻyxatdan oʻtkazadi. Nonce disk yoki logda saqlanmaydi. Timestamp javoblari bir xil vaqt nuqtasini saqlashi shart; UTC `Z` va `+00:00` ekvivalent.

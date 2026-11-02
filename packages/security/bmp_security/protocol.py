@@ -171,8 +171,11 @@ def validate_response(raw: bytes | str | dict, pending_request: dict,
     kind = pending_request.get("type")
     if kind not in REQUESTS:
         _fail("unsupported_type")
-    for key in ("version", "request_id", "device_id", "scope", "timestamp", "expires_at"):
+    for key in ("version", "request_id", "device_id", "scope"):
         if message.get(key) != pending_request.get(key):
+            _fail("correlation_mismatch")
+    for key in ("timestamp", "expires_at"):
+        if _time(message.get(key)) != _time(pending_request.get(key)):
             _fail("correlation_mismatch")
     if message["type"] not in (REQUESTS[kind][1], "AGENT_ERROR"):
         _fail("unexpected_response")

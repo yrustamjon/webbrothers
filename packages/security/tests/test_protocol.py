@@ -26,6 +26,9 @@ class ProtocolTests(unittest.TestCase):
         response = {key: value for key, value in validated.items() if key != "params"}
         response.update(type="HISTORY_RESPONSE", payload={"items": [], "page": 1, "page_size": 20})
         self.assertEqual(validate_response(response, original, NOW)["payload"]["items"], [])
+        response["timestamp"] = response["timestamp"].replace("+00:00", "Z")
+        response["expires_at"] = response["expires_at"].replace("+00:00", "Z")
+        validate_response(response, original, NOW)
 
     def test_reject_unknown_type_and_arbitrary_commands(self):
         for update in ({"type": "EXEC"}, {"params": {"command": "whoami"}}, {"command": "whoami"}):
