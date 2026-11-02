@@ -24,7 +24,7 @@ if [ ! -f "$BMP_DEV_CERT_FILE" ] || [ ! -f "$BMP_DEV_KEY_FILE" ]; then
   mkcert -cert-file "$BMP_DEV_CERT_FILE" -key-file "$BMP_DEV_KEY_FILE" localhost 127.0.0.1 ::1
 fi
 export DATABASE_URL="${DATABASE_URL:-sqlite:///$bmp_root/.local/metadata.db}"
-export PUBLIC_ORIGIN="https://localhost:$BMP_DEV_PORT"
+export PUBLIC_ORIGIN="${PUBLIC_ORIGIN:-https://localhost:$BMP_DEV_PORT}"
 export BMP_DEVELOPMENT=0
 export BMP_AUTO_CREATE=0
 export BMP_DEV_WEB_DIRECTORY="$bmp_root/apps/web/dist"

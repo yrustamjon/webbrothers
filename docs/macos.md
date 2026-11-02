@@ -60,6 +60,16 @@ Agent wrapperi mahalliy kuchli sirni `.local/agent-passphrase` faylida `0600` ru
 
 ## Toʻxtatish va qayta boshlash
 
+### Ngrok orqali ulash
+
+Ngrok `http://127.0.0.1:8000` ga yoʻnaltirilgan boʻlsa, avval shu portdagi eski serverni toʻxtating. Aniq tashqi HTTPS manzil bilan boshlang:
+
+```sh
+bash scripts/dev-tunnel.sh https://SIZNING-DOMENINGIZ.ngrok-free.dev
+```
+
+Saytni ham, agentni ham shu tashqi HTTPS manzil orqali oching. Bu manzil `PUBLIC_ORIGIN` sifatida CSRF origin tekshiruviga qoʻllanadi; wildcard ruxsat berilmaydi. Lokal upstream faqat 127.0.0.1:8000 da HTTP ishlaydi, tashqi HTTPS/WSSni ngrok taʼminlaydi. Ngrok domeni oʻzgarsa serverni yangi manzil bilan qayta boshlang. Tunnel operatori TLSni tugatgani sabab trafikni shu operator orqali oʻtkazishga rozilik bilan foydalaning. Mavjud `.local/metadata.db` bazasi saqlanadi. Agentdagi eski server manzili boʻlsa, uni yangi manzilga oʻzgartirish va zarur boʻlsa qayta ulash talab qilinadi.
+
 Agent va server terminallarida Ctrl+C bosing. Keyingi safar tayyorlashni takrorlamay, alohida terminallarda quyidagilar yetarli:
 
 ```sh
