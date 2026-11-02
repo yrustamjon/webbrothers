@@ -15,12 +15,13 @@ type Cache struct {
 	mu        sync.Mutex
 	max, used int
 	ttl       time.Duration
+	now       func() time.Time
 	items     map[string]*list.Element
 	order     *list.List
 }
 
 func New(max int, ttl time.Duration) *Cache {
-	return &Cache{max: max, ttl: ttl, items: map[string]*list.Element{}, order: list.New()}
+	return &Cache{max: max, ttl: ttl, now: time.Now, items: map[string]*list.Element{}, order: list.New()}
 }
 func (c *Cache) remove(e *list.Element) {
 	i := e.Value.(item)
@@ -36,7 +37,7 @@ func (c *Cache) Get(key string) ([]byte, bool) {
 		return nil, false
 	}
 	i := e.Value.(item)
-	if time.Now().After(i.expires) {
+	if !c.now().Before(i.expires) {
 		c.remove(e)
 		return nil, false
 	}
@@ -56,7 +57,7 @@ func (c *Cache) Set(key string, data []byte) {
 	for c.used+cost > c.max {
 		c.remove(c.order.Back())
 	}
-	c.items[key] = c.order.PushFront(item{key, append([]byte(nil), data...), time.Now().Add(c.ttl)})
+	c.items[key] = c.order.PushFront(item{key, append([]byte(nil), data...), c.now().Add(c.ttl)})
 	c.used += cost
 }
 func (c *Cache) Clear() {
