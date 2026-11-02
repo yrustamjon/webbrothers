@@ -33,9 +33,14 @@ Vite API soʻrovlarini 8000-portga uzatadi. `PUBLIC_ORIGIN` ni haqiqiy frontend 
 
 ## Sinovlar
 
-Python bogʻliqliklari, Node 24, Go va C kompilyatori oʻrnatilgach:
+Python 3.12+, Node 24, qoʻllab-quvvatlanadigan Go (sinovda 1.27.3) va C kompilyatori kerak. Umumiy sinov bogʻliqliklarini izolyatsiyalangan virtual muhitda oʻrnating:
 
 ```sh
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements-dev.txt
+(cd apps/web && npm ci)
+(cd agent && go mod download)
 scripts/check.sh
 ```
 
