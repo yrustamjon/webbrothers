@@ -86,6 +86,53 @@ class ProtocolTests(unittest.TestCase):
         guard.accept(request(request_id="req-2", timestamp=later.isoformat(),
                              expires_at=(later + timedelta(seconds=30)).isoformat()), later)
 
+    def test_response_shapes_and_sensitive_field_rejection(self):
+        cases = [
+            ("BROWSER_LIST_REQUEST", "browser.discovery", "BROWSER_LIST_RESPONSE", {"items": [{"id": "chrome", "name": "Chrome", "profiles": [{"id": "default", "name": "Shaxsiy"}]}]}),
+            ("PROFILE_LIST_REQUEST", "profile.discovery", "PROFILE_LIST_RESPONSE", {"items": [{"id": "default", "name": "Shaxsiy"}]}),
+            ("HISTORY_QUERY", "history.read", "HISTORY_RESPONSE", {"items": [{"url": "https://example.com", "title": "Sinov", "domain": "example.com", "visited_at": NOW.isoformat(), "visit_count": 1}], "page": 1, "page_size": 20}),
+            ("LOGIN_INVENTORY_QUERY", "login.inventory", "LOGIN_INVENTORY_RESPONSE", {"items": [{"domain": "example.com", "username": "test", "credential_exists": True}]}),
+            ("TRAFFIC_STATS_REQUEST", "traffic.aggregate", "TRAFFIC_STATS_RESPONSE", {"received_bytes": 20, "sent_bytes": 10, "attribution": "device", "collected_at": NOW.isoformat()}),
+        ]
+        for kind, scope, response_kind, payload in cases:
+            original = request(type=kind, scope=scope)
+            response = {key: value for key, value in original.items() if key != "params"}
+            response.update(type=response_kind, payload=payload)
+            with self.subTest(kind=kind):
+                validate_response(response, original, NOW)
+                broken = copy.deepcopy(response)
+                broken["payload"]["cookies"] = "forbidden-secret"
+                with self.assertRaises(ProtocolError) as caught:
+                    validate_response(broken, original, NOW)
+                self.assertNotIn("forbidden-secret", str(caught.exception))
+                if "items" in payload:
+                    broken = copy.deepcopy(response)
+                    broken["payload"]["items"][0]["password"] = "forbidden-secret"
+                    with self.assertRaises(ProtocolError):
+                        validate_response(broken, original, NOW)
+
+    def test_traffic_rejects_fake_profile_attribution_and_invalid_numbers(self):
+        original = request(type="TRAFFIC_STATS_REQUEST", scope="traffic.aggregate")
+        response = {key: value for key, value in original.items() if key != "params"}
+        response.update(type="TRAFFIC_STATS_RESPONSE", payload={"received_bytes": 20, "sent_bytes": 10, "attribution": "device", "collected_at": NOW.isoformat()})
+        for changes in ({"attribution": "profile"}, {"received_bytes": True}, {"sent_bytes": -1}, {"received_bytes": 2**64}):
+            broken = copy.deepcopy(response)
+            broken["payload"].update(changes)
+            with self.subTest(changes=changes), self.assertRaises(ProtocolError):
+                validate_response(broken, original, NOW)
+
+    def test_replay_guard_concurrent_duplicate_is_single_accept(self):
+        from concurrent.futures import ThreadPoolExecutor
+        guard = ReplayGuard()
+        def attempt(_):
+            try:
+                guard.accept(request(), NOW)
+                return True
+            except ProtocolError:
+                return False
+        with ThreadPoolExecutor(max_workers=8) as workers:
+            self.assertEqual(sum(workers.map(attempt, range(32))), 1)
+
     def test_redaction(self):
         self.assertEqual(redact_url("https://alice:secret@example.com/a?token=secret#password"), "https://example.com/a")
         self.assertEqual(redact_url("https://[::1]:8443/a?q=x"), "https://[::1]:8443/a")

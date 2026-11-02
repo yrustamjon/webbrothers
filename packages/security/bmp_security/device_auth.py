@@ -5,7 +5,7 @@ import base64
 import secrets
 import threading
 from datetime import datetime, timedelta
-from .protocol import IDENTIFIER, ProtocolError, _clock, _decode, _time
+from .protocol import IDENTIFIER, ProtocolError, _clock, _decode
 
 AUTH_PREFIX = "BMP-AGENT-AUTH-V1\n"
 

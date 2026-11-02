@@ -161,6 +161,79 @@ def validate_request(raw: bytes | str | dict, authenticated_device_id: str,
     return message
 
 
+
+def _fields(value: Any, required: set[str], optional: set[str] | None = None) -> None:
+    if not isinstance(value, dict) or not required <= value.keys() or value.keys() - (required | (optional or set())):
+        _fail("invalid_payload_schema")
+
+
+def _string(value: Any, maximum: int) -> None:
+    if not isinstance(value, str) or len(value) > maximum or "\x00" in value:
+        _fail("invalid_payload_schema")
+
+
+def _unsigned(value: Any, maximum: int = 2**64 - 1) -> None:
+    if type(value) is not int or not 0 <= value <= maximum:
+        _fail("invalid_payload_schema")
+
+
+def _profile(value: Any) -> None:
+    _fields(value, {"id", "name"})
+    _text(value["id"])
+    _string(value["name"], 512)
+
+
+def _response_payload(kind: str, payload: dict) -> None:
+    if kind == "TRAFFIC_STATS_REQUEST":
+        _fields(payload, {"received_bytes", "sent_bytes", "attribution", "collected_at"})
+        _unsigned(payload["received_bytes"])
+        _unsigned(payload["sent_bytes"])
+        if payload["attribution"] != "device":
+            _fail("invalid_payload_schema")
+        _time(payload["collected_at"])
+        return
+    if kind == "HISTORY_QUERY":
+        _fields(payload, {"items", "page", "page_size"}, {"total"})
+        for key, maximum in (("page", 1_000_000), ("page_size", 200)):
+            _unsigned(payload[key], maximum)
+            if payload[key] == 0:
+                _fail("invalid_payload_schema")
+        if "total" in payload:
+            _unsigned(payload["total"])
+    else:
+        _fields(payload, {"items"})
+    items = payload["items"]
+    limit = payload["page_size"] if kind == "HISTORY_QUERY" else 1000
+    if not isinstance(items, list) or len(items) > limit:
+        _fail("invalid_payload_schema")
+    for item in items:
+        if kind == "BROWSER_LIST_REQUEST":
+            _fields(item, {"id", "name", "profiles"})
+            _text(item["id"])
+            _string(item["name"], 512)
+            if not isinstance(item["profiles"], list) or len(item["profiles"]) > 1000:
+                _fail("invalid_payload_schema")
+            for profile in item["profiles"]:
+                _profile(profile)
+        elif kind == "PROFILE_LIST_REQUEST":
+            _profile(item)
+        elif kind == "HISTORY_QUERY":
+            _fields(item, {"url", "title", "visited_at", "domain"}, {"visit_count"})
+            _string(item["url"], 65536)
+            _string(item["title"], 16384)
+            _string(item["domain"], 512)
+            if item["visited_at"] != "":
+                _time(item["visited_at"])
+            if "visit_count" in item:
+                _unsigned(item["visit_count"])
+        elif kind == "LOGIN_INVENTORY_QUERY":
+            _fields(item, {"domain", "username", "credential_exists"})
+            _string(item["domain"], 512)
+            _string(item["username"], 512)
+            if type(item["credential_exists"]) is not bool:
+                _fail("invalid_payload_schema")
+
+
 def validate_response(raw: bytes | str | dict, pending_request: dict,
                       now: datetime | None = None) -> dict:
     """Match one in-flight response; caller must atomically consume its pending slot."""
@@ -190,6 +263,8 @@ def validate_response(raw: bytes | str | dict, pending_request: dict,
             _fail("invalid_error")
     elif not isinstance(message.get("payload"), dict) or message["type"] == "AGENT_ERROR":
         _fail("invalid_payload")
+    if not has_error:
+        _response_payload(kind, message["payload"])
     return message
 
 
