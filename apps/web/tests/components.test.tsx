@@ -109,7 +109,15 @@ describe("haqiqiy komponent oʻzaro taʼsirlari", () => {
           payload: { items: [], page: 1, page_size: 25, total: 0 },
         });
       });
-    mount(<Explorer device={device} />);
+    mount(
+      <Explorer
+        device={{
+          ...device,
+          operating_system: "darwin",
+          scopes: [...device.scopes, "traffic.aggregate", "login.inventory"],
+        }}
+      />,
+    );
     const user = userEvent.setup();
     const chrome = await screen.findByRole("button", { name: /Chrome/ });
     await user.click(chrome);
@@ -121,6 +129,12 @@ describe("haqiqiy komponent oʻzaro taʼsirlari", () => {
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Ish", exact: true }));
     await screen.findByText("Tanlangan filtrlarda tarix topilmadi.");
+    expect(
+      screen.queryByRole("tab", { name: "Loginlar" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: "Trafik" }),
+    ).not.toBeInTheDocument();
     await user.type(
       screen.getByLabelText("URL, sarlavha yoki domen"),
       "example",
