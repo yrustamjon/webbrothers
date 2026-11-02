@@ -36,7 +36,7 @@ Docker proksi sozlamalarini saqlang. Compose build uchun shu secretni qoʻllovch
 
 ## Tekshiruv va zaxira
 
-`scripts/check.sh` backend, frontend va Go testlarini bajaradi. `python scripts/smoke.py --base-url https://domen` izolyatsiyalangan sinov hisobini yaratadi; haqiqiy foydalanuvchi brauzer maʼlumotlaridan foydalanmaydi. SMTP tasdiqlash siyosati sinov muhitida alohida sozlanadi.
+`scripts/check.sh` backend, frontend va Go testlarini bajaradi. `python scripts/smoke.py --base-url https://domen --agent /agent/binar/yoʻli` izolyatsiyalangan sinov hisobini yaratadi; haqiqiy foydalanuvchi brauzer maʼlumotlaridan foydalanmaydi. SMTP tasdiqlash siyosati sinov muhitida alohida sozlanadi.
 
 Faqat PostgreSQL operatsion metamaʼlumotlarini `pg_dump` orqali shifrlangan tashqi saqlashga zaxiralang; tiklashni alohida bazada tekshiring. Redis va agentning lokal brauzer mazmuni markaziy zaxiraga kirmaydi. Sertifikat muddati, DB salomatligi, disk joyi va API mavjudligini kuzating; URL/soʻrov tanalarini monitoringga yozmang.
 

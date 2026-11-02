@@ -59,7 +59,7 @@ def main():
             db.execute('INSERT INTO urls VALUES(1,?,?,1,?)',('https://synthetic.example.test/qa','Sintetik QA sahifasi',chrome_time))
             db.execute('INSERT INTO visits VALUES(1,1,?)',(chrome_time,))
         env = os.environ.copy()
-        env.update(HOME=directory, XDG_CONFIG_HOME=str(root/'.config'), BROWSER_AGENT_KEY_PASSPHRASE=secrets.token_urlsafe(32))
+        env.update(BROWSER_AGENT_PROFILE_HOME=directory, BROWSER_AGENT_KEY_PASSPHRASE=secrets.token_urlsafe(32))
         if args.ca_file: env['SSL_CERT_FILE'] = str(Path(args.ca_file).resolve())
         common = [str(args.agent.resolve()),'--server',args.base_url,'--state',str(root/'identity.enc'),'--scopes','browser.discovery,profile.discovery,history.read,traffic.aggregate']
         pairing = subprocess.Popen(common+['--action','pair'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
