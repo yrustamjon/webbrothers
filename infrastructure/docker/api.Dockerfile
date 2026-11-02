@@ -6,6 +6,8 @@ RUN --mount=type=secret,id=proxy_ca \
     if [ -f /run/secrets/proxy_ca ]; then export PIP_CERT=/run/secrets/proxy_ca; fi; \
     pip install --no-cache-dir -r requirements.txt
 COPY apps/api/ ./
+COPY packages/security/ /app/packages/security/
+ENV PYTHONPATH=/app:/app/packages/security
 RUN useradd --system --uid 10001 bmp
 USER 10001
 EXPOSE 8000
