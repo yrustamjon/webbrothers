@@ -152,8 +152,11 @@ func History(browsers []Browser, q Query) (Page, error) {
 	if !within(path, filepath.Join(path, file)) {
 		return result, errors.New("Profil yoʻli ruxsat doirasidan tashqarida")
 	}
-	uri := url.URL{Scheme: "file", Path: filepath.Join(path, file)}
-	db, err := sql.Open("sqlite3", uri.String()+"?mode=ro&_query_only=1&_busy_timeout=1000")
+	uri, err := historyURI(filepath.Join(path, file))
+	if err != nil {
+		return result, errors.New("Tarix bazasi yoʻli yaroqsiz")
+	}
+	db, err := sql.Open("sqlite3", uri)
 	if err != nil {
 		return result, errors.New("Tarix bazasi ochilmadi")
 	}
@@ -207,6 +210,23 @@ func History(browsers []Browser, q Query) (Page, error) {
 		result.Items = append(result.Items, v)
 	}
 	return result, rows.Err()
+}
+
+func historyURI(path string) (string, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	// SQLite file URIs use slash separators and /C:/... for Windows drives.
+	// Without the leading slash net/url encodes a drive path as an opaque URI.
+	uriPath := filepath.ToSlash(absolute)
+	if !strings.HasPrefix(uriPath, "/") {
+		uriPath = "/" + uriPath
+	}
+	uri := url.URL{Scheme: "file", Path: uriPath}
+	params := url.Values{"mode": {"ro"}, "_query_only": {"1"}, "_busy_timeout": {"1000"}}
+	uri.RawQuery = params.Encode()
+	return uri.String(), nil
 }
 
 func within(root, path string) bool {

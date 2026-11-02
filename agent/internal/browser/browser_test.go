@@ -2,15 +2,17 @@ package browser
 
 import (
 	"database/sql"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
 
 func fixture(t *testing.T, kind string) (string, []Browser) {
 	t.Helper()
-	h := t.TempDir()
+	h := filepath.Join(t.TempDir(), "Profil #1 Oʻzbek")
 	rel := ".config/google-chrome/Default"
 	file := "History"
 	schema := `CREATE TABLE urls (url TEXT,title TEXT,last_visit_time INTEGER,visit_count INTEGER); INSERT INTO urls VALUES ('https://example.test/path?private=yes','Sinov',13348540800000000,3),('https://other.test','Boshqa',13348540801000000,1)`
@@ -36,6 +38,32 @@ func fixture(t *testing.T, kind string) (string, []Browser) {
 		t.Fatalf("discovery %+v", b)
 	}
 	return h, b
+}
+
+func TestHistoryURIReadOnly(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "Profil #1 Oʻzbek", "History")
+	value, err := historyURI(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	uri, err := url.Parse(value)
+	if err != nil || uri.Scheme != "file" || uri.Opaque != "" || uri.Fragment != "" || strings.Contains(uri.Path, `\`) {
+		t.Fatalf("invalid SQLite URI: %q (%v)", value, err)
+	}
+	if uri.Query().Get("mode") != "ro" || uri.Query().Get("_query_only") != "1" {
+		t.Fatal("read-only protection missing")
+	}
+	db, err := sql.Open("sqlite3", value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := db.Ping(); err == nil {
+		t.Fatal("missing database unexpectedly opened")
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatal("read-only open created a database")
+	}
 }
 func TestHistoryReadOnlyAndFilters(t *testing.T) {
 	h, b := fixture(t, "chrome")
