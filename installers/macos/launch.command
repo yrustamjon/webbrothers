@@ -21,8 +21,12 @@ if [ "$bmp_choice" != 1 ]; then exit 0; fi
 if [ -f "$bmp_home/server" ]; then
   bmp_server="$(cat "$bmp_home/server")"
 else
-  read -r -p 'Saytning HTTPS manzili (masalan https://localhost:8443): ' bmp_server
+  read -r -p 'Saytning HTTPS manzili [Enter = https://localhost:8443]: ' bmp_server
 fi
+# read trims surrounding whitespace; an empty response uses the local server.
+bmp_server="${bmp_server#"${bmp_server%%[![:space:]]*}"}"
+bmp_server="${bmp_server%"${bmp_server##*[![:space:]]}"}"
+bmp_server="${bmp_server:-https://localhost:8443}"
 case "$bmp_server" in https://?*) ;; *) echo 'HTTPS manzili kerak.'; exit 1;; esac
 printf 'Server: %s\n' "$bmp_server"
 printf 'Brauzer/profillarni aniqlash va tarixni oʻqishga rozimisiz? [ha/yoʻq]: '
