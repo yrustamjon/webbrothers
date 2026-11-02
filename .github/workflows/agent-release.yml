@@ -50,6 +50,8 @@ jobs:
       - name: Build macOS
         if: matrix.platform == 'darwin'
         working-directory: agent
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '12.0'
         run: go build -buildvcs=false -o bin/browser-agent ./cmd/browser-agent
       - name: Package macOS
         if: matrix.platform == 'darwin'
@@ -59,7 +61,7 @@ jobs:
       - name: Build Windows
         if: matrix.platform == 'windows'
         working-directory: agent
-        run: go build -buildvcs=false -o bin/browser-agent.exe ./cmd/browser-agent
+        run: go build -buildvcs=false -ldflags '-linkmode external -extldflags "-static"' -o bin/browser-agent.exe ./cmd/browser-agent
       - name: Package Windows
         if: matrix.platform == 'windows'
         shell: pwsh

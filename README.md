@@ -44,6 +44,12 @@ npm run dev
 
 Vite API soʻrovlarini 8000-portga uzatadi. `PUBLIC_ORIGIN` ni haqiqiy frontend manbasiga tenglang. Faqat mahalliy ishlab chiqishda `BMP_DEVELOPMENT=1`; ishlab chiqarishda HTTPS va Secure cookie majburiy.
 
+## Windows va macOS agent installerlar
+
+Saytdagi **Agent ilovasini oʻrnatish** boʻlimi GitHub Releasesʼdagi oxirgi toʻliq nashrni avtomatik oladi. Windows x86-64 va macOS Intel/Apple Silicon paketlari uchun versiya va yuklash havolasi koʻrsatiladi. Nashr mavjud boʻlmasa, yuklash tayyor deb koʻrsatilmaydi.
+
+`main`ga agent, installer yoki release workflow oʻzgarishi push qilinganda `.github/workflows/agent-release.yml` native testlardan keyin uchala paketni yigʻadi va `agent-v0.1.N` relizini chiqaradi. Barcha fayllar yuklangach reliz eʼlon qilinadi; sayt roʻyxati bir daqiqada yangilanadi. Yangilash — agentni toʻxtatib yangi paketni qayta oʻrnatish; ulanish holati saqlanadi. Bu yashirin avtomatik updater emas. Hozir paketlar OS sertifikati bilan imzolanmagan; [installer qoʻllanmasi](installers/README.md)dagi amaliy sinov va imzolash cheklovlarini oʻqing.
+
 ## Sinovlar
 
 Python 3.12+, Node 24, qoʻllab-quvvatlanadigan Go (sinovda 1.27.3) va C kompilyatori kerak. Umumiy sinov bogʻliqliklarini izolyatsiyalangan virtual muhitda oʻrnating:

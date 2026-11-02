@@ -54,6 +54,8 @@ Mahalliy CA ikki kunlik sinov sertifikatidir; yangi sessiya uchun `scripts/local
 
 ## Qolgan ishlar
 
+2026-11-02 installer oqimi: latest-release API metadata validatsiyasi va login nazorati bilan API jami 33 test oʻtdi, PostgreSQL testi sozlanmagani uchun 1 tasi oʻtkazilmadi. Frontend 15 Vitest va 5 model testi, format/build hamda Go race/vet oʻtdi. macOS arm64 DMG haqiqiy native `hdiutil` bilan yigʻildi; Windows Inno Setup build va macOS/Windows GUI oʻrnatish hali mahalliy tekshirilmagan. Release workflow uchala native paket tayyor boʻlgach draftni eʼlon qiladi; OS signing/notarization hali sozlanmagan. Sayt oxirgi toʻliq GitHub relizini 60 soniyalik RAM keshi bilan tekshiradi; shaxsiy maʼlumotlar bu oqimga kirmaydi.
+
 2026-11-02 macOS arm64 lokal tekshiruvi: Python 3.13.7, Node 24.3.0, Go 1.25.5. API: 22 test oʻtdi, alohida PostgreSQL testi sozlanmagani uchun 1 tasi oʻtkazilmadi. Umumiy Python/security va frontend testlari, frontend build, Go race testlari va vet oʻtdi. Lokal HTTPS server ishga tushdi; alohida SQLite bazasi va vaqtinchalik sintetik Chrome profili bilan haqiqiy Go agentining HTTPS/WSS ulash, tarix soʻrovi, CSRF, begona hisobdan himoya, offline/qayta ulanish va revoke sinovi oʻtdi. Agent macOSda `SSL_CERT_FILE` orqali mahalliy CAni aniq yuklaydi; TLS tekshiruvi saqlangan. Shaxsiy brauzer profili oʻqilmadi. macOS trafik, Safari, GUI brauzer sinovi, LaunchAgent va imzolangan reliz tekshirilmagan. `mkcert -install` tizim ishonch ombori uchun administrator parolini talab qildi; bu qadam foydalanuvchi terminalida yakunlanishi kerak.
 
 - Windows/macOSda amaliy oʻrnatish, ishlash va oʻchirish testlari; Windows Service integratsiyasi; macOS LaunchAgent namunasi hali amaliy tekshirilmagan.
