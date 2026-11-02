@@ -22,6 +22,9 @@ func Decode(data []byte, out any) error {
 		if e != nil {
 			return e
 		}
+		if depth == 0 && t != json.Delim('{') {
+			return errors.New("JSON obyekt talab qilinadi")
+		}
 		if delim, ok := t.(json.Delim); ok {
 			switch delim {
 			case '{':

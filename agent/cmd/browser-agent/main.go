@@ -203,6 +203,9 @@ func handle(m protocol.Message, c *cache.Cache) (any, error) {
 	}
 	switch m.Type {
 	case "BROWSER_LIST_REQUEST":
+		if e = decode(m.Params, &struct{}{}); e != nil {
+			return nil, errors.New("Parametrlar notoʻgʻri")
+		}
 		return map[string]any{"items": b}, nil
 	case "PROFILE_LIST_REQUEST":
 		var p struct {
@@ -258,6 +261,9 @@ func handle(m protocol.Message, c *cache.Cache) (any, error) {
 	case "LOGIN_INVENTORY_QUERY":
 		return nil, errors.New("Login inventari uchun ruxsatli brauzer kengaytmasi zarur; parollar oʻqilmaydi")
 	case "TRAFFIC_STATS_REQUEST":
+		if e = decode(m.Params, &struct{}{}); e != nil {
+			return nil, errors.New("Parametrlar notoʻgʻri")
+		}
 		return traffic.Collect()
 	}
 	return nil, errors.New("Soʻrov turi qoʻllanmaydi")

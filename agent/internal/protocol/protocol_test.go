@@ -31,7 +31,7 @@ func TestPermissionExpiryReplay(t *testing.T) {
 	}
 }
 func TestStrictJSONAndResponseFields(t *testing.T) {
-	for _, raw := range []string{`{"version":1,"version":2}`, `{} {}`, `{"params":{"page":1,"page":2}}`, `{"unknown":1}`, `{"payload":null}`, `{"error":null}`, `{"version":1,"type":"HEARTBEAT","device_id":"other"}`, `{"version":1,"type":"HEARTBEAT","device_id":"d1","scope":"x"}`} {
+	for _, raw := range []string{`null`, `[]`, `{"version":1,"version":2}`, `{} {}`, `{"params":{"page":1,"page":2}}`, `{"unknown":1}`, `{"payload":null}`, `{"error":null}`, `{"version":1,"type":"HEARTBEAT","device_id":"other"}`, `{"version":1,"type":"HEARTBEAT","device_id":"d1","scope":"x"}`} {
 		var m Message
 		if e := ValidateIncoming([]byte(raw), &m, "d1"); e == nil {
 			t.Fatalf("unsafe JSON accepted %s", raw)
