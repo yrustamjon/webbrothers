@@ -12,3 +12,5 @@ class Settings:
     smtp_user: str = os.getenv('SMTP_USER', '')
     smtp_password: str = os.getenv('SMTP_PASSWORD', '')
     smtp_from: str = os.getenv('SMTP_FROM', 'noreply@localhost')
+    release_directory: str = os.getenv('AGENT_RELEASE_DIRECTORY', '')
+    release_public_key: str = os.getenv('AGENT_RELEASE_PUBLIC_KEY', '')

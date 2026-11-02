@@ -53,7 +53,7 @@ def test_pairing_single_use_and_revocation(client):
         challenge=ws.receive_json()
         signature=KEY.sign(('BMP-AGENT-AUTH-V1\n'+d['device_id']+'\n'+challenge['nonce']).encode())
         ws.send_json({'version':1,'type':'AUTH_PROOF','device_id':d['device_id'],'nonce':challenge['nonce'],'signature':base64.b64encode(signature).decode()})
-        ws.send_json({'type':'HEARTBEAT','device_id':d['device_id']})
+        ws.send_json({'version':1,'type':'HEARTBEAT','device_id':d['device_id']})
         assert ws.receive_json()['type']=='HEARTBEAT'
         assert c.get('/api/v1/devices').json()['items'][0]['status']=='online'
     assert c.post(f"/api/v1/devices/{d['device_id']}/revoke",headers=h).status_code==200
@@ -89,7 +89,7 @@ def test_routing_payload_not_persisted(client):
         challenge=ws.receive_json()
         signature=KEY.sign(('BMP-AGENT-AUTH-V1\n'+d['device_id']+'\n'+challenge['nonce']).encode())
         ws.send_json({'version':1,'type':'AUTH_PROOF','device_id':d['device_id'],'nonce':challenge['nonce'],'signature':base64.b64encode(signature).decode()})
-        ws.send_json({'type':'HEARTBEAT','device_id':d['device_id']}); ws.receive_json()
+        ws.send_json({'version':1,'type':'HEARTBEAT','device_id':d['device_id']}); ws.receive_json()
         with ThreadPoolExecutor() as pool:
             future=pool.submit(c.post,f"/api/v1/devices/{d['device_id']}/query",json={'type':'BROWSER_LIST_REQUEST','params':{}},headers=h)
             request=ws.receive_json(); assert request['params']=={}
@@ -108,7 +108,9 @@ def test_email_verification_and_reset(client,monkeypatch):
         def __init__(self,*args,**kwargs): self.tls=False
         def __enter__(self): return self
         def __exit__(self,*args): pass
-        def starttls(self): self.tls=True
+        def starttls(self,context):
+            assert context.check_hostname and context.verify_mode==2
+            self.tls=True
         def send_message(self,msg): assert self.tls; sent.append(msg.get_content())
     monkeypatch.setattr(main.smtplib,'SMTP',SMTP)
     # Existing application settings are deliberately immutable to test callers; build a configured app.
@@ -127,3 +129,23 @@ def test_email_verification_and_reset(client,monkeypatch):
             assert c.post('/api/v1/auth/password/reset',json={'token':token,'password':'new-password-secure'}).status_code==200
             assert c.get('/api/v1/auth/me').status_code==401
             assert c.post('/api/v1/auth/login',json={'email':'one@example.com','password':'new-password-secure'}).status_code==200
+
+def test_release_signature_verification(tmp_path):
+    from bmp.releases import verified_release
+    filename='bmp-agent-linux-amd64'; content=b'synthetic-test-agent'
+    (tmp_path/filename).write_bytes(content)
+    (tmp_path/(filename+'.sig')).write_text(base64.b64encode(KEY.sign(content)).decode())
+    assert verified_release(str(tmp_path),PUBLIC,'linux','amd64')['content']==content
+    (tmp_path/filename).write_bytes(b'tampered')
+    assert verified_release(str(tmp_path),PUBLIC,'linux','amd64') is None
+    assert verified_release(str(tmp_path),PUBLIC,'../../etc','passwd') is None
+
+def test_release_endpoint_empty_honestly(client):
+    assert client.get('/api/v1/agent/releases').status_code==401
+    account(client)
+    assert client.get('/api/v1/agent/releases').json()=={'items':[]}
+    assert client.get('/api/v1/agent/download/linux/amd64').status_code==404
+
+def test_origin_and_key_rejection(client):
+    assert client.post('/api/v1/auth/register',headers={'Origin':'https://evil.test'},json={'email':'e@example.com','password':'strong-password-42'}).status_code==403
+    assert client.post('/api/v1/pairing/start',json={'display_name':'PC','operating_system':'linux','architecture':'amd64','public_key':'a'*44}).status_code==422

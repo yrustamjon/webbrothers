@@ -9,6 +9,7 @@ import hmac
 import json
 import secrets
 import smtplib
+import ssl
 from email.message import EmailMessage
 from uuid import uuid4
 from argon2 import PasswordHasher
@@ -20,6 +21,7 @@ from sqlalchemy import create_engine, select, delete, update
 from sqlalchemy.orm import sessionmaker
 from bmp_security import DeviceChallenge, ProtocolError, validate_request, validate_response
 from .config import Settings
+from .releases import TARGETS, verified_release
 from .models import Base, User, Session, Device, Enrollment, Audit, AccountToken
 from .protocol import Credentials, PairStart, PairApprove, PairPoll, Query, SCOPES, RESPONSES, EmailInput, TokenInput, ResetInput
 
@@ -100,7 +102,7 @@ def create_app(settings=None):
         msg.set_content(f'Bir martalik tasdiqlash kodi: {token}\nAmal qilish muddati: 30 daqiqa.')
         try:
             with smtplib.SMTP(config.smtp_host, config.smtp_port, timeout=10) as smtp:
-                smtp.starttls()
+                smtp.starttls(context=ssl.create_default_context())
                 if config.smtp_user: smtp.login(config.smtp_user,config.smtp_password)
                 smtp.send_message(msg)
         except (OSError,smtplib.SMTPException): fail(503,'Elektron xat yuborilmadi')
@@ -207,6 +209,18 @@ def create_app(settings=None):
         for key,future in list(pending.items()):
             if key[0]==d.id and not future[0].done(): future[0].set_exception(ConnectionError())
         return {'message':'Qurilma ruxsati bekor qilindi'}
+    @app.get('/api/v1/agent/releases')
+    def releases(identity=Depends(auth)):
+        items=[]
+        for platform,architecture in TARGETS:
+            item=verified_release(config.release_directory,config.release_public_key,platform,architecture)
+            if item: items.append({'platform':platform,'architecture':architecture,'filename':item['filename'],'sha256':item['sha256'],'signature':item['signature'],'download_url':f'/api/v1/agent/download/{platform}/{architecture}'})
+        return {'items':items}
+    @app.get('/api/v1/agent/download/{platform}/{architecture}')
+    def download(platform: str, architecture: str, identity=Depends(auth)):
+        item=verified_release(config.release_directory,config.release_public_key,platform,architecture)
+        if not item: fail(404,'Imzolangan agent paketi mavjud emas')
+        return Response(item['content'],media_type='application/octet-stream',headers={'Content-Disposition':f'attachment; filename="{item["filename"]}"','X-Content-SHA256':item['sha256']})
     @app.get('/api/v1/audit')
     def audits(identity=Depends(auth), s=Depends(db)):
         return {'items':[{'action':a.action,'device_id':a.device_id,'created_at':a.created_at} for a in s.scalars(select(Audit).where(Audit.actor_id==identity[0].id).order_by(Audit.created_at.desc()).limit(100))]}
@@ -249,21 +263,29 @@ def create_app(settings=None):
         except (ProtocolError,asyncio.TimeoutError,WebSocketDisconnect):
             await ws.close(code=1008); return
         previous=connections.get(device_id); connections[device_id]=ws
+        inbound=deque(); last_seen_update=0.0
         if previous: await previous.close(code=1008)
         try:
             while True:
                 raw=await asyncio.wait_for(ws.receive_text(),timeout=60)
+                tick=asyncio.get_running_loop().time()
+                while inbound and inbound[0]<tick-60: inbound.popleft()
+                if len(inbound)>=180: await ws.close(code=1008); break
+                inbound.append(tick)
                 if len(raw.encode())>1048576: await ws.close(code=1009); break
                 message=json.loads(raw)
                 if not isinstance(message,dict): await ws.close(code=1008); break
                 with sessions() as s:
                     d=s.get(Device,device_id)
                     if not d or d.revoked: await ws.close(code=1008); break
-                    d.last_seen_at=utc(); s.commit()
+                    if tick-last_seen_update>=10:
+                        d.last_seen_at=utc(); s.commit(); last_seen_update=tick
                 if message.get('type') in ('HEARTBEAT','AGENT_HELLO'):
-                    if message.get('device_id',device_id)!=device_id: await ws.close(code=1008); break
+                    if (message.get('device_id')!=device_id or type(message.get('version')) is not int or message['version']!=1 or set(message)-{'version','type','device_id','timestamp'}): await ws.close(code=1008); break
                     await ws.send_json({'version':1,'type':'HEARTBEAT','device_id':device_id}); continue
-                key=(device_id,message.get('request_id','')); entry=pending.get(key)
+                rid=message.get('request_id')
+                if not isinstance(rid,str) or len(rid)>128: await ws.close(code=1008); break
+                key=(device_id,rid); entry=pending.get(key)
                 if not entry: continue
                 future,envelope=entry
                 try: validate_response(raw,envelope)
