@@ -37,3 +37,8 @@ class TokenInput(Strict):
     token: str = Field(max_length=128)
 class ResetInput(TokenInput):
     password: str = Field(min_length=12,max_length=256)
+
+class ScopeUpdate(Strict):
+    scopes: list[str] = Field(max_length=7)
+class MonitoringUpdate(Strict):
+    paused: bool = Field(strict=True)

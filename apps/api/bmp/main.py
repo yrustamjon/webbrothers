@@ -23,7 +23,7 @@ from bmp_security import DeviceChallenge, ProtocolError, validate_request, valid
 from .config import Settings
 from .releases import TARGETS, verified_release
 from .models import Base, User, Session, Device, Enrollment, Audit, AccountToken
-from .protocol import Credentials, PairStart, PairApprove, PairPoll, Query, SCOPES, RESPONSES, EmailInput, TokenInput, ResetInput
+from .protocol import ScopeUpdate, MonitoringUpdate, Credentials, PairStart, PairApprove, PairPoll, Query, SCOPES, RESPONSES, EmailInput, TokenInput, ResetInput
 
 def utc(): return datetime.now(timezone.utc)
 def aware(value): return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
@@ -196,12 +196,32 @@ def create_app(settings=None):
         if not item or not hmac.compare_digest(item.poll_hash,digest(body.poll_token)) or item.consumed or aware(item.expires_at)<=utc(): fail(400,'Ulash soʻrovi yaroqsiz')
         if not item.approved_by: return {'status':'pending'}
         token=secrets.token_urlsafe(48)
-        device=Device(owner_id=item.approved_by,display_name=item.display_name,operating_system=item.operating_system,architecture=item.architecture,public_key=item.public_key,scopes=item.scopes,token_hash=digest(token))
+        device=Device(owner_id=item.approved_by,display_name=item.display_name,operating_system=item.operating_system,architecture=item.architecture,public_key=item.public_key,scopes=item.scopes,enrolled_scopes=item.scopes,token_hash=digest(token))
         item.consumed=True; s.add(device); s.flush(); audit(s,item.approved_by,'device.enrolled',device.id); s.commit()
         return {'status':'approved','device_id':device.id,'device_token':token,'scopes':json.loads(device.scopes)}
     @app.get('/api/v1/devices')
     def devices(identity=Depends(auth), s=Depends(db)):
-        return {'items':[{'id':d.id,'display_name':d.display_name,'operating_system':d.operating_system,'architecture':d.architecture,'status':'revoked' if d.revoked else ('online' if d.id in connections else 'offline'),'last_seen_at':d.last_seen_at,'scopes':json.loads(d.scopes)} for d in s.scalars(select(Device).where(Device.owner_id==identity[0].id))]}
+        return {'items':[{'id':d.id,'display_name':d.display_name,'operating_system':d.operating_system,'architecture':d.architecture,'status':'revoked' if d.revoked else ('online' if d.id in connections else 'offline'),'last_seen_at':d.last_seen_at,'scopes':json.loads(d.scopes),'enrolled_scopes':json.loads(d.enrolled_scopes),'monitoring_paused':d.monitoring_paused} for d in s.scalars(select(Device).where(Device.owner_id==identity[0].id))]}
+    async def interrupt_device(device_id):
+        # Fail in-flight requests before closing so callers cannot receive stale data.
+        for key,entry in list(pending.items()):
+            if key[0]==device_id and not entry[0].done(): entry[0].set_exception(PermissionError())
+        if ws:=connections.pop(device_id,None): await ws.close(code=1008)
+    @app.post('/api/v1/devices/{device_id}/scopes')
+    async def change_scopes(device_id: str, body: ScopeUpdate, identity=Depends(auth), s=Depends(db)):
+        d=owned(s,device_id,identity[0].id)
+        requested=set(body.scopes); cap=set(json.loads(d.enrolled_scopes))
+        if not requested<=cap: fail(403,'Yangi ruxsat uchun qurilmani qayta ulang')
+        narrowed=not set(json.loads(d.scopes))<=requested
+        d.scopes=json.dumps(sorted(requested)); audit(s,identity[0].id,'device.scopes.changed',device_id); s.commit()
+        if narrowed: await interrupt_device(device_id)
+        return {'scopes':sorted(requested),'enrolled_scopes':sorted(cap)}
+    @app.post('/api/v1/devices/{device_id}/monitoring')
+    async def monitoring(device_id: str, body: MonitoringUpdate, identity=Depends(auth), s=Depends(db)):
+        d=owned(s,device_id,identity[0].id); d.monitoring_paused=body.paused
+        audit(s,identity[0].id,'device.monitoring.paused' if body.paused else 'device.monitoring.resumed',device_id); s.commit()
+        if body.paused: await interrupt_device(device_id)
+        return {'monitoring_paused':body.paused}
     @app.post('/api/v1/devices/{device_id}/revoke')
     async def revoke(device_id: str, identity=Depends(auth), s=Depends(db)):
         d=owned(s,device_id,identity[0].id); d.revoked=True; audit(s,identity[0].id,'device.revoked',d.id); s.commit()
@@ -227,6 +247,7 @@ def create_app(settings=None):
     @app.post('/api/v1/devices/{device_id}/query')
     async def query(device_id: str, body: Query, request: Request, identity=Depends(auth), s=Depends(db)):
         rate(request,'query',60); d=owned(s,device_id,identity[0].id)
+        if d.monitoring_paused: fail(403,'Kuzatuv vaqtincha toʻxtatilgan')
         scope=SCOPES[body.type]
         if scope not in json.loads(d.scopes): fail(403,'Bu maʼlumot uchun ruxsat berilmagan')
         ws=connections.get(device_id)
@@ -240,6 +261,7 @@ def create_app(settings=None):
         try:
             await ws.send_json(envelope)
             return await asyncio.wait_for(future,timeout=config.query_timeout)
+        except PermissionError: fail(403,'Qurilma ruxsatlari oʻzgartirildi')
         except asyncio.TimeoutError: fail(504,'Qurilma javob berish muddati tugadi')
         except (ConnectionError,RuntimeError): fail(409,'Qurilma uzildi')
         finally: pending.pop((device_id,rid),None)

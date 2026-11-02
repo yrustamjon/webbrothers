@@ -149,3 +149,32 @@ def test_release_endpoint_empty_honestly(client):
 def test_origin_and_key_rejection(client):
     assert client.post('/api/v1/auth/register',headers={'Origin':'https://evil.test'},json={'email':'e@example.com','password':'strong-password-42'}).status_code==403
     assert client.post('/api/v1/pairing/start',json={'display_name':'PC','operating_system':'linux','architecture':'amd64','public_key':'a'*44}).status_code==422
+
+def test_consent_scope_cap_pause_csrf_ownership(client):
+    c=client; h=account(c); _,d=pair(c,h); route=f"/api/v1/devices/{d['device_id']}"
+    assert c.post(route+'/scopes',json={'scopes':[]}).status_code==403
+    assert c.post(route+'/scopes',json={'scopes':['history.read']},headers=h).status_code==403
+    assert c.post(route+'/scopes',json={'scopes':[]},headers=h).status_code==200
+    device=c.get('/api/v1/devices').json()['items'][0]
+    assert device['scopes']==[] and device['enrolled_scopes']==['browser.discovery']
+    assert c.post(route+'/scopes',json={'scopes':['browser.discovery']},headers=h).status_code==200
+    assert c.post(route+'/monitoring',json={'paused':True},headers=h).status_code==200
+    assert c.post(route+'/query',json={'type':'BROWSER_LIST_REQUEST','params':{}},headers=h).status_code==403
+    assert c.post(route+'/monitoring',json={'paused':False},headers=h).json()=={'monitoring_paused':False}
+    c.post('/api/v1/auth/logout',headers=h); other=account(c,'other@example.com')
+    assert c.post(route+'/monitoring',json={'paused':True},headers=other).status_code==404
+    assert c.post(route+'/scopes',json={'scopes':[]},headers=other).status_code==404
+
+def test_scope_narrowing_interrupts_pending(client):
+    from concurrent.futures import ThreadPoolExecutor
+    c=client; h=account(c); _,d=pair(c,h); route=f"/api/v1/devices/{d['device_id']}"
+    with c.websocket_connect('/api/v1/ws/agent',headers={'Authorization':f"Bearer {d['device_token']}"}) as ws:
+        challenge=ws.receive_json()
+        signature=KEY.sign(('BMP-AGENT-AUTH-V1\n'+d['device_id']+'\n'+challenge['nonce']).encode())
+        ws.send_json({'version':1,'type':'AUTH_PROOF','device_id':d['device_id'],'nonce':challenge['nonce'],'signature':base64.b64encode(signature).decode()})
+        ws.send_json({'version':1,'type':'HEARTBEAT','device_id':d['device_id']}); ws.receive_json()
+        with ThreadPoolExecutor() as pool:
+            response=pool.submit(c.post,route+'/query',json={'type':'BROWSER_LIST_REQUEST','params':{}},headers=h)
+            ws.receive_json()
+            assert c.post(route+'/scopes',json={'scopes':[]},headers=h).status_code==200
+            assert response.result(timeout=5).status_code==403

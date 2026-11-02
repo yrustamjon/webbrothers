@@ -30,6 +30,8 @@ class Device(Base):
     architecture: Mapped[str] = mapped_column(String(32))
     public_key: Mapped[str] = mapped_column(Text)
     scopes: Mapped[str] = mapped_column(Text)
+    enrolled_scopes: Mapped[str] = mapped_column(Text, default='[]')
+    monitoring_paused: Mapped[bool] = mapped_column(Boolean, default=False)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
