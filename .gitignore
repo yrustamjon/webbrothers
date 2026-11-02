@@ -15,3 +15,4 @@ coverage/
 *.key
 agent/bin/
 .DS_Store
+/.local/
