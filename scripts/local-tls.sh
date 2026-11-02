@@ -10,6 +10,8 @@ if [ -n "$(ls -A "$bmp_tls_dir")" ]; then
 fi
 openssl req -x509 -newkey rsa:3072 -nodes -days 2 \
   -subj '/CN=BMP mahalliy sinov CA' \
+  -addext 'basicConstraints=critical,CA:TRUE' \
+  -addext 'keyUsage=critical,keyCertSign,cRLSign' \
   -keyout "$bmp_tls_dir/ca.key" -out "$bmp_tls_dir/ca.pem" 2>/dev/null
 openssl req -newkey rsa:3072 -nodes -subj '/CN=localhost' \
   -keyout "$bmp_tls_dir/server.key" -out "$bmp_tls_dir/server.csr" 2>/dev/null
