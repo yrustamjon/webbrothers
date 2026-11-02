@@ -15,7 +15,155 @@ const platforms = [
   ["darwin", "macOS"],
   ["windows", "Windows"],
 ];
+type Installer = {
+  platform: "darwin" | "windows";
+  architecture: "amd64" | "arm64";
+  filename: string;
+  version: string;
+  download_url: string;
+  release_url: string;
+  sha256: string;
+};
+
 export default function Downloads() {
+  const [platform, setPlatform] = useState(
+    /Mac/i.test(navigator.platform) ? "darwin" : "windows",
+  );
+  const [arch, setArch] = useState(platform === "darwin" ? "arm64" : "amd64");
+  const installers = useQuery<{
+    items: Installer[];
+    status: "available" | "unavailable";
+  }>({
+    queryKey: ["agent-installers"],
+    queryFn: () => api("/agent/installers"),
+    staleTime: 0,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: "always",
+  });
+  const selected = installers.data?.items.find(
+    (item) => item.platform === platform && item.architecture === arch,
+  );
+  return (
+    <>
+      <section className="panel">
+        <h1>Agent ilovasini oʻrnatish</h1>
+        <p>
+          Windows va macOS uchun oxirgi nashr GitHub Releases orqali olinadi.
+          Roʻyxat har daqiqada va sahifaga qaytganingizda yangilanadi.
+        </p>
+        <div className="filters">
+          <label>
+            Ilova uchun operatsion tizim
+            <select
+              value={platform}
+              onChange={(event) => {
+                setPlatform(event.target.value);
+                setArch(event.target.value === "darwin" ? "arm64" : "amd64");
+              }}
+            >
+              <option value="windows">Windows</option>
+              <option value="darwin">macOS</option>
+            </select>
+          </label>
+          <label>
+            Ilova uchun protsessor
+            <select
+              value={arch}
+              onChange={(event) => setArch(event.target.value)}
+            >
+              {platform === "darwin" && (
+                <option value="arm64">Apple Silicon (M1, M2, M3, M4…)</option>
+              )}
+              <option value="amd64">
+                {platform === "darwin" ? "Intel Mac" : "Intel / AMD (64-bit)"}
+              </option>
+            </select>
+          </label>
+          <button
+            className="secondary"
+            onClick={() => installers.refetch()}
+            disabled={installers.isFetching}
+          >
+            Oxirgi versiyani tekshirish
+          </button>
+        </div>
+        {installers.isPending && (
+          <p role="status">Oxirgi nashr qidirilmoqda…</p>
+        )}
+        {installers.error && (
+          <p role="alert" className="error">
+            Oxirgi nashrni tekshirib boʻlmadi. {installers.error.message}
+          </p>
+        )}
+        {installers.data && !selected && (
+          <p role="status">
+            Tanlangan tizim uchun oʻrnatish fayli hali chiqarilmagan yoki
+            nashrni tekshirish vaqtincha ishlamayapti. Keyinroq qayta
+            tekshiring.
+          </p>
+        )}
+        {selected && (
+          <article className="release">
+            <h2>Oxirgi versiya: {selected.version}</h2>
+            <p>{selected.filename}</p>
+            <p>
+              <a href={selected.download_url} rel="noreferrer">
+                {platform === "darwin" ? "macOS" : "Windows"} ilovasini yuklab
+                olish
+              </a>
+            </p>
+            <p>
+              <a href={selected.release_url} target="_blank" rel="noreferrer">
+                Nashr tafsilotlari va tekshiruv fayllari
+              </a>
+            </p>
+            {selected.sha256 && (
+              <details>
+                <summary>SHA-256 nazorat summasi</summary>
+                <code>{selected.sha256}</code>
+              </details>
+            )}
+          </article>
+        )}
+        <h2>Oʻrnatish va ulash</h2>
+        <ol>
+          <li>
+            {platform === "darwin"
+              ? "DMG faylini oching, WebBrothers Agent ilovasini Applications katalogiga koʻchiring va oching."
+              : "Setup faylini ochib oʻrnating. Start menyusidan WebBrothers Agent ilovasini oching."}
+          </li>
+          <li>
+            Ilova oynasida serverning HTTPS manzilini kiriting. Brauzer va
+            profilni aniqlash hamda tarixni oʻqishga faqat roziligingiz bilan
+            ruxsat bering.
+          </li>
+          <li>
+            Ilovadagi ulash kodini saytdagi “Qurilma ulash” boʻlimida
+            tasdiqlang. Agent ishlayotgan oynani ochiq qoldiring; toʻxtatish
+            uchun Ctrl+C.
+          </li>
+        </ol>
+        <p>
+          Yangilash uchun agentni toʻxtating va shu sahifadagi oxirgi versiyani
+          qayta oʻrnating. Mahalliy ulanish va sozlamalar saqlanadi. Avtomatik
+          yangilanish yoki fonda ishga tushish hozir yoqilmagan.
+        </p>
+        <p className="muted">
+          Paket mavjudligi Windows/macOSda amaliy sinov yoki OS imzosi borligini
+          anglatmaydi. Imzo va tekshiruv holatini nashr tafsilotlaridan koʻring.
+          Windows/macOS trafik yigʻish, Safari tarixi va login inventari hali
+          qoʻllanmaydi.
+        </p>
+      </section>
+      <details className="panel">
+        <summary>Terminal uchun imzolangan agent binarlari</summary>
+        <SignedBinaries />
+      </details>
+    </>
+  );
+}
+
+function SignedBinaries() {
   const [platform, setPlatform] = useState("linux");
   const [arch, setArch] = useState("amd64");
   const releases = useQuery<{ items: Release[] }>({

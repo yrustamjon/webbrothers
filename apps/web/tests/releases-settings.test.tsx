@@ -73,7 +73,9 @@ it("haqiqiy nashr tanlanadi va yuklash xatosi yashirilmaydi", async () => {
             },
           ],
         })
-      : response({ detail: "Imzolangan agent paketi mavjud emas" }, 404),
+      : String(url).endsWith("/agent/installers")
+        ? response({ items: [], status: "unavailable" })
+        : response({ detail: "Imzolangan agent paketi mavjud emas" }, 404),
   );
   mount(<Downloads />);
   await userEvent.click(
@@ -87,6 +89,90 @@ it("haqiqiy nashr tanlanadi va yuklash xatosi yashirilmaydi", async () => {
   expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(
     "/api/v1/agent/download/linux/amd64",
   );
+});
+
+const installer = {
+  platform: "windows",
+  architecture: "amd64",
+  filename: "bmp-agent-windows-amd64-setup.exe",
+  version: "1.2.3",
+  download_url:
+    "https://github.com/yrustamjon/webbrothers/releases/download/agent-v1.2.3/bmp-agent-windows-amd64-setup.exe",
+  release_url:
+    "https://github.com/yrustamjon/webbrothers/releases/tag/agent-v1.2.3",
+  sha256: "a".repeat(64),
+};
+
+it("oxirgi installer havolasi koʻrsatiladi, tanlangan OSga mos boʻlmagan havola yoʻq", async () => {
+  const fetchMock = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation((url) =>
+      response(
+        String(url).endsWith("/agent/installers")
+          ? { items: [installer], status: "available" }
+          : { items: [] },
+      ),
+    );
+  mount(<Downloads />);
+  expect(
+    await screen.findByRole("link", { name: "Windows ilovasini yuklab olish" }),
+  ).toHaveAttribute("href", installer.download_url);
+  expect(screen.getByText("Oxirgi versiya: 1.2.3")).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/v1/agent/installers",
+    expect.objectContaining({ credentials: "include", cache: "no-store" }),
+  );
+  await userEvent.selectOptions(
+    screen.getByLabelText("Ilova uchun operatsion tizim"),
+    "darwin",
+  );
+  expect(
+    screen.queryByRole("link", { name: /ilovasini yuklab olish/ }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Ilova uchun protsessor")).toHaveValue("arm64");
+  expect(
+    screen.getByText(/oʻrnatish fayli hali chiqarilmagan/),
+  ).toBeInTheDocument();
+});
+
+it("installer roʻyxatini qayta tekshirish yangi versiyaga olib boradi", async () => {
+  let current = installer;
+  vi.spyOn(globalThis, "fetch").mockImplementation((url) =>
+    response(
+      String(url).endsWith("/agent/installers")
+        ? { items: [current], status: "available" }
+        : { items: [] },
+    ),
+  );
+  mount(<Downloads />);
+  await screen.findByText("Oxirgi versiya: 1.2.3");
+  current = {
+    ...installer,
+    version: "1.2.4",
+    download_url: installer.download_url.replace("1.2.3", "1.2.4"),
+  };
+  await userEvent.click(
+    screen.getByRole("button", { name: "Oxirgi versiyani tekshirish" }),
+  );
+  await screen.findByText("Oxirgi versiya: 1.2.4");
+  expect(
+    screen.getByRole("link", { name: "Windows ilovasini yuklab olish" }),
+  ).toHaveAttribute("href", current.download_url);
+});
+
+it("installer tekshiruvi xatosida soxta yuklash havolasi berilmaydi", async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation((url) =>
+    String(url).endsWith("/agent/installers")
+      ? response({ detail: "GitHub vaqtincha ishlamayapti" }, 503)
+      : response({ items: [] }),
+  );
+  mount(<Downloads />);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "GitHub vaqtincha ishlamayapti",
+  );
+  expect(
+    screen.queryByRole("link", { name: /ilovasini yuklab olish/ }),
+  ).not.toBeInTheDocument();
 });
 it("ruxsatlar dastlabki cap bilan cheklangan va mutation CSRF bilan yuboriladi", async () => {
   const fetchMock = vi
