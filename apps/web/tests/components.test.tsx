@@ -25,6 +25,9 @@ describe('haqiqiy komponent oʻzaro taʼsirlari',()=>{
  it('ulash faqat aniq tanlangan ruxsatlarni yuboradi',async()=>{
   const fetchMock=vi.spyOn(globalThis,'fetch').mockImplementation(url=>String(url).endsWith('/auth/csrf')?response({csrf_token:'csrf'}):response({status:'approved'}));const done=vi.fn();mount(<Pairing onDone={done}/>);const user=userEvent.setup();const approve=screen.getByRole('button',{name:'Ulashni tasdiqlash'});expect(approve).toBeDisabled();await user.type(screen.getByLabelText('Ulash kodi'),'AABBCCDDEEFF');await user.click(screen.getByRole('checkbox',{name:'Brauzerlarni aniqlash'}));await user.click(approve);await waitFor(()=>expect(done).toHaveBeenCalledOnce());const call=fetchMock.mock.calls.find(([url])=>String(url).endsWith('/pairing/approve'));expect(JSON.parse(String(call?.[1]?.body))).toEqual({code:'AABBCCDDEEFF',scopes:['browser.discovery']});expect(call?.[1]?.headers).toMatchObject({'X-CSRF-Token':'csrf'});
  });
+ it('pauzadagi online qurilma agentga soʻrov yubormaydi',()=>{
+  const fetchMock=vi.spyOn(globalThis,'fetch');mount(<Explorer device={{...device,monitoring_paused:true}}/>);expect(screen.getByRole('status')).toHaveTextContent('Kuzatuv toʻxtatilgan');expect(fetchMock).not.toHaveBeenCalled();
+ });
  it('offline qurilma agentga soʻrov yubormaydi',()=>{
   const fetchMock=vi.spyOn(globalThis,'fetch');mount(<Explorer device={{...device,status:'offline'}}/>);expect(screen.getByRole('status')).toHaveTextContent('Qurilma ulanmagan');expect(fetchMock).not.toHaveBeenCalled();
  });

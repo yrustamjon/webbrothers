@@ -16,7 +16,7 @@ export async function api<T>(path:string,body?:unknown,method?:string):Promise<T
  if(!response.ok){const detail=data?.detail;throw new APIError(response.status,typeof detail==='string'?detail:detail?.message||'Soʻrov bajarilmadi. Qayta urinib koʻring.');}
  return data as T;
 }
-export type Device={id:string;display_name:string;operating_system:string;architecture:string;status:string;last_seen_at?:string;scopes:string[]};
+export type Device={id:string;display_name:string;operating_system:string;architecture:string;status:string;last_seen_at?:string;scopes:string[];enrolled_scopes?:string[];monitoring_paused?:boolean};
 export type Browser={id:string;name:string;profiles:{id:string;name:string}[]};
 export type History={items:{url:string;title:string;visited_at:string;domain:string;visit_count?:number}[];total?:number;page:number;page_size:number};
 export type Traffic={received_bytes:number;sent_bytes:number;attribution:string;collected_at:string};
