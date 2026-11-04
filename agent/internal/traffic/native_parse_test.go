@@ -37,32 +37,3 @@ func TestDarwinRejectsMissingMalformedAndOverflowCounters(t *testing.T) {
 		}
 	}
 }
-
-func TestWindowsCounters(t *testing.T) {
-	got, err := parseWindows([]byte(`[{"received_bytes":300,"sent_bytes":400},{"received_bytes":20,"sent_bytes":50}]`))
-	if err != nil || got.Received != 320 || got.Sent != 450 || got.Attribution != "device" {
-		t.Fatalf("unexpected totals: %+v %v", got, err)
-	}
-	if _, err := time.Parse(time.RFC3339, got.CollectedAt); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := parseWindows(append([]byte{0xef, 0xbb, 0xbf}, []byte(`[{"received_bytes":0,"sent_bytes":0}]`)...)); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWindowsRejectsInvalidCounters(t *testing.T) {
-	for _, output := range []string{
-		"", "[]", "null", `{}`, `[{"received_bytes":1}]`,
-		`[{"received_bytes":null,"sent_bytes":1}]`,
-		`[{"received_bytes":-1,"sent_bytes":1}]`,
-		`[{"received_bytes":1.5,"sent_bytes":1}]`,
-		`[{"received_bytes":1,"sent_bytes":1,"name":"private"}]`,
-		`[{"received_bytes":1,"sent_bytes":1}] {}`,
-		`[{"received_bytes":18446744073709551615,"sent_bytes":1},{"received_bytes":1,"sent_bytes":1}]`,
-	} {
-		if _, err := parseWindows([]byte(output)); err == nil {
-			t.Fatal("invalid Windows counters accepted")
-		}
-	}
-}

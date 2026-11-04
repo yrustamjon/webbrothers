@@ -3,9 +3,7 @@ package traffic
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"errors"
-	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -84,32 +82,6 @@ func parseDarwin(output []byte) (Stats, error) {
 	}
 	if scanner.Err() != nil || len(seen) == 0 {
 		return Stats{}, errors.New("OS interfeys hisoblagichlari topilmadi")
-	}
-	return stats, nil
-}
-
-func parseWindows(output []byte) (Stats, error) {
-	var rows []struct {
-		Received *uint64 `json:"received_bytes"`
-		Sent     *uint64 `json:"sent_bytes"`
-	}
-	decoder := json.NewDecoder(bytes.NewReader(bytes.TrimPrefix(output, []byte{0xef, 0xbb, 0xbf})))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&rows); err != nil || len(rows) == 0 {
-		return Stats{}, errors.New("Windows trafik hisoblagichlari notoʻgʻri")
-	}
-	var extra any
-	if decoder.Decode(&extra) != io.EOF {
-		return Stats{}, errors.New("Windows trafik javobi notoʻgʻri")
-	}
-	stats := totals()
-	for _, row := range rows {
-		if row.Received == nil || row.Sent == nil {
-			return Stats{}, errors.New("Windows bayt hisoblagichi topilmadi")
-		}
-		if err := addCounters(&stats, *row.Received, *row.Sent); err != nil {
-			return Stats{}, err
-		}
 	}
 	return stats, nil
 }
