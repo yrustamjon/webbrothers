@@ -35,7 +35,7 @@ func main() {
 }
 func run() error {
 	server := flag.String("server", "", "HTTPS server manzili")
-	action := flag.String("action", "run", "pair, run, discover yoki clear-cache")
+	action := flag.String("action", "run", "pair, re-pair, run, discover yoki clear-cache")
 	scopes := flag.String("scopes", "", "Mahalliy rozilik: vergul bilan ajratilgan ruxsatlar")
 	state := flag.String("state", "", "Shifrlangan identifikator fayli")
 	flag.Parse()
@@ -65,6 +65,9 @@ func run() error {
 	defer stop()
 	if *action == "pair" {
 		return pair(ctx, *server, *state, pass, *scopes)
+	}
+	if *action == "re-pair" {
+		return rePair(ctx, *server, *state, pass, *scopes)
 	}
 	if *action != "run" {
 		return errors.New("Amal qoʻllanmaydi")
@@ -201,6 +204,12 @@ func pair(ctx context.Context, server, path, pass, scopes string) error {
 func decode(raw json.RawMessage, out any) error { return protocol.Decode(raw, out) }
 
 func handle(m protocol.Message, c *cache.Cache) (any, error) {
+	if m.Type == "TRAFFIC_STATS_REQUEST" {
+		if e := decode(m.Params, &struct{}{}); e != nil {
+			return nil, errors.New("Parametrlar notoʻgʻri")
+		}
+		return traffic.Collect()
+	}
 	b, e := browser.Current()
 	if e != nil {
 		return nil, e
@@ -210,7 +219,18 @@ func handle(m protocol.Message, c *cache.Cache) (any, error) {
 		if e = decode(m.Params, &struct{}{}); e != nil {
 			return nil, errors.New("Parametrlar notoʻgʻri")
 		}
-		return map[string]any{"items": b}, nil
+		items := make([]map[string]any, 0, len(b))
+		for _, br := range b {
+			capabilities := []string{"history.read"}
+			if br.ID == "chrome" || br.ID == "edge" || br.ID == "brave" {
+				capabilities = append(capabilities, "login.inventory")
+			}
+			if runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+				capabilities = append(capabilities, "traffic.aggregate")
+			}
+			items = append(items, map[string]any{"id": br.ID, "name": br.Name, "profiles": br.Profiles, "capabilities": capabilities})
+		}
+		return map[string]any{"items": items}, nil
 	case "PROFILE_LIST_REQUEST":
 		var p struct {
 			BrowserID string `json:"browser_id"`
@@ -263,12 +283,14 @@ func handle(m protocol.Message, c *cache.Cache) (any, error) {
 		c.Set(key, data)
 		return p, nil
 	case "LOGIN_INVENTORY_QUERY":
-		return nil, errors.New("Login inventari uchun ruxsatli brauzer kengaytmasi zarur; parollar oʻqilmaydi")
-	case "TRAFFIC_STATS_REQUEST":
-		if e = decode(m.Params, &struct{}{}); e != nil {
-			return nil, errors.New("Parametrlar notoʻgʻri")
+		var q struct {
+			BrowserID string `json:"browser_id"`
+			ProfileID string `json:"profile_id"`
 		}
-		return traffic.Collect()
+		if e = decode(m.Params, &q); e != nil {
+			return nil, errors.New("Login inventari parametrlari notoʻgʻri")
+		}
+		return browser.Inventory(b, q.BrowserID, q.ProfileID)
 	}
 	return nil, errors.New("Soʻrov turi qoʻllanmaydi")
 }

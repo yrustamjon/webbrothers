@@ -63,10 +63,20 @@ def main():
             chrome_time = int((time.time()+11644473600)*1000000)
             db.execute('INSERT INTO urls VALUES(1,?,?,1,?)',('https://synthetic.example.test/qa','Sintetik QA sahifasi',chrome_time))
             db.execute('INSERT INTO visits VALUES(1,1,?)',(chrome_time,))
+        with sqlite3.connect(profile/'Login Data') as db:
+            db.executescript('CREATE TABLE logins(origin_url TEXT, username_value TEXT, password_value BLOB, blacklisted_by_user INTEGER);')
+            db.execute('INSERT INTO logins VALUES(?,?,?,0)', ('https://synthetic.example.test/login', 'fixture-user', b'never-return-this-secret'))
+        if sys.platform == 'darwin':
+            safari = root/'Library/Safari'
+            safari.mkdir(parents=True)
+            with sqlite3.connect(safari/'History.db') as db:
+                db.executescript('CREATE TABLE history_items(id INTEGER PRIMARY KEY,url TEXT,visit_count INTEGER); CREATE TABLE history_visits(id INTEGER PRIMARY KEY,history_item INTEGER,visit_time REAL,title TEXT);')
+                db.execute('INSERT INTO history_items VALUES(1,?,1)', ('https://safari-synthetic.example.test/qa',))
+                db.execute('INSERT INTO history_visits VALUES(1,1,?,?)', (time.time()-978307200, 'Sintetik Safari sahifasi'))
         env = os.environ.copy()
         env.update(BROWSER_AGENT_PROFILE_HOME=directory, BROWSER_AGENT_KEY_PASSPHRASE=secrets.token_urlsafe(32))
         if args.ca_file: env['SSL_CERT_FILE'] = str(Path(args.ca_file).resolve())
-        common = [str(args.agent.resolve()),'--server',args.base_url,'--state',str(root/'identity.enc'),'--scopes','browser.discovery,profile.discovery,history.read,traffic.aggregate']
+        common = [str(args.agent.resolve()),'--server',args.base_url,'--state',str(root/'identity.enc'),'--scopes','browser.discovery,profile.discovery,history.read,login.inventory,traffic.aggregate']
         pairing = subprocess.Popen(common+['--action','pair'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
         lines = queue.Queue()
         def reader():
@@ -85,7 +95,7 @@ def main():
                     code = line.rsplit(':',1)[-1].strip()
                     break
             if not code: raise AssertionError('Agent ulash kodini bermadi')
-            scopes = ['browser.discovery','profile.discovery','history.read','traffic.aggregate']
+            scopes = ['browser.discovery','profile.discovery','history.read','login.inventory','traffic.aggregate']
             call(owner,'/pairing/approve',{'code':code,'scopes':scopes},csrf)
             pairing.wait(timeout=20)
             if pairing.returncode: raise AssertionError('Agent ulanishi bajarilmadi')
@@ -112,10 +122,17 @@ def main():
             history = call(owner,path,{'type':'HISTORY_QUERY','params':{'browser_id':chrome['id'],'profile_id':profiles[0]['id'],'search':'synthetic.example.test','page':1,'page_size':10}},csrf)
             history_payload = history.get('payload',history)
             assert any(x['url']=='https://synthetic.example.test/qa' for x in history_payload['items']), 'Haqiqiy fixture tarixi qaytmadi'
-            if sys.platform.startswith('linux'):
-                traffic = call(owner,path,{'type':'TRAFFIC_STATS_REQUEST','params':{}},csrf)
-                stats = traffic.get('payload',traffic)
-                assert stats['received_bytes']>=0 and stats['sent_bytes']>=0
+            assert 'login.inventory' in chrome['capabilities'], 'Agent login imkoniyatini bildirmadi'
+            inventory = call(owner,path,{'type':'LOGIN_INVENTORY_QUERY','params':{'browser_id':chrome['id'],'profile_id':profiles[0]['id']}},csrf)['payload']
+            assert inventory['items'] == [{'domain':'synthetic.example.test','username':'fixture-user','credential_exists':True}]
+            assert 'never-return-this-secret' not in json.dumps(inventory), 'Maxfiy qiymat javobga chiqdi'
+            if sys.platform == 'darwin':
+                safari = next(b for b in items if b['id']=='safari')
+                safari_history = call(owner,path,{'type':'HISTORY_QUERY','params':{'browser_id':'safari','profile_id':safari['profiles'][0]['id'],'page':1,'page_size':10}},csrf)['payload']
+                assert safari_history['items'][0]['url']=='https://safari-synthetic.example.test/qa'
+            traffic = call(owner,path,{'type':'TRAFFIC_STATS_REQUEST','params':{}},csrf)
+            stats = traffic.get('payload',traffic)
+            assert stats['received_bytes']>=0 and stats['sent_bytes']>=0 and stats['attribution']=='device'
             runner.terminate()
             runner.wait(timeout=5)
             deadline = time.monotonic()+10
@@ -143,7 +160,7 @@ def main():
                 assert item['status']=='revoked', 'Bekor qilingan agent yana onlayn boʻldi'
                 time.sleep(.25)
             print('PASS: HTTPS sessiya, CSRF, bir martalik ulash, haqiqiy WSS Go agent, sintetik tarix, begona hisob bloklanishi, oflayn/qayta ulanish, bekor qilingan agent qayta ulana olmaydi')
-            print('Trafik: Linuxda tekshirildi' if sys.platform.startswith('linux') else 'Trafik: bu OSda qoʻllanmaydi; sinov oʻtkazilmadi')
+            print('PASS: parollarsiz login inventari va qurilma trafik hisoblagichlari; Safari sintetik tarixi macOSda tekshirildi' if sys.platform == 'darwin' else 'PASS: parollarsiz login inventari va qurilma trafik hisoblagichlari')
         finally:
             for process in (pairing,runner):
                 if process is not None and process.poll() is None:

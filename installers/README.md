@@ -1,12 +1,13 @@
 # Windows/macOS agent paketlari
 
-Paket agentni yashirin ishga tushirmaydi va avtomatik start qoʻshmaydi. Ilovani ochganda ko‘rinadigan terminalda saytning HTTPS manzilini kiriting, brauzer/profillarni aniqlash va tarixni oʻqishga `ha` bilan rozilik bering, kodni sayt orqali tasdiqlang. Keyingi ochishda shu shifrlangan qurilma identifikatori ishlatiladi. Toʻxtatish: Ctrl+C. Trafik, cookie yoki parol oʻqish ruxsati berilmaydi.
+Paket agentni yashirin ishga tushirmaydi va avtomatik start qoʻshmaydi. Ilovani ochganda ko‘rinadigan terminalda saytning HTTPS manzilini kiriting, brauzer/profillarni aniqlash va tarixni oʻqishga `ha` bilan rozilik bering, kodni sayt orqali tasdiqlang. Keyingi ochishda shu shifrlangan qurilma identifikatori ishlatiladi. Toʻxtatish: Ctrl+C. Login domeni/foydalanuvchi nomi va qurilma trafik hisoblagichi uchun alohida rozilik soʻraladi; cookie va parol qiymatlari oʻqilmaydi.
 
 ## Oʻrnatish va yangilash
 
 - macOS: tegishli `bmp-agent-darwin-arm64.dmg` (Apple Silicon) yoki `bmp-agent-darwin-amd64.dmg` (Intel) ni ochib, `WebBrothers Agent.app` ni Applicationsga torting. Uni ochish Terminalni boshlaydi; imzolangan/notarizatsiya qilingan reliz hali alohida sozlanishi kerak. Tashkilot Gatekeeper siyosatini oʻchirmang.
 - Windows x64: `bmp-agent-windows-amd64-setup.exe` ni ishga tushiring. Administrator talab qilinmaydi; Start menyusidan WebBrothers Agentni oching. ARM64 uchun mahalliy Windows paketi hozir yoʻq.
 - Yangilash: avval ishlayotgan agentni Ctrl+C bilan toʻxtating. Ilova menyusidagi `2 — Yangilanishni yuklab olish` mos platformaning GitHub `releases/latest/download/...` manzilini ochadi. Yuklangan ilova/installerni qayta oʻrnating. Bu foydalanuvchi boshlab beradigan yangilash; avtomatik versiya solishtirish yoki jim oʻrnatish mavjud emas.
+- Yangi ruxsatlar: `3 — Ruxsatlarni yangilash / qayta ulash`ni tanlang, login/trafik uchun rozilik bering va yangi kodni saytda tasdiqlang. Mavjud ruxsatlar avtomatik kengaytirilmaydi. Eski identifikator tasdiqlashgacha saqlanadi va keyin zaxiralanadi; eski qurilmani dashboardda bekor qiling.
 - Oʻrnatilgan versiya terminalda koʻrsatiladi. Barqaror GitHub reliz yoʻqligida latest havolasi ishlamaydi; reliz chiqarilgan deb hisoblamang.
 
 Holat va mahalliy sirlar ilovadan tashqarida saqlanadi, shuning uchun almashtirish/upgrade ularni saqlaydi:

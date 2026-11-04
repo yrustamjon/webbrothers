@@ -26,12 +26,15 @@ jobs:
           - runner: macos-15-intel
             platform: darwin
             arch: amd64
+            binary: agent/bin/browser-agent
           - runner: macos-15
             platform: darwin
             arch: arm64
+            binary: agent/bin/browser-agent
           - runner: windows-latest
             platform: windows
             arch: amd64
+            binary: agent/bin/browser-agent.exe
     runs-on: ${{ matrix.runner }}
     env:
       CGO_ENABLED: '1'
@@ -72,6 +75,16 @@ jobs:
             choco install innosetup --no-progress -y
           }
           ./scripts/package-agent-windows.ps1 -Version $env:VERSION -BinaryPath agent/bin/browser-agent.exe -OutputDirectory release-dist
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Native integration dependencies
+        run: python -m pip install -r apps/api/requirements.txt
+      - name: Native HTTPS WSS synthetic profile integration
+        env:
+          AGENT_BINARY: ${{ matrix.binary }}
+        shell: bash
+        run: python scripts/native-smoke.py --agent "$AGENT_BINARY"
       - uses: actions/upload-artifact@v4
         with:
           name: installer-${{ matrix.platform }}-${{ matrix.arch }}
@@ -115,7 +128,9 @@ jobs:
 
           Agent faqat joriy foydalanuvchi tomonidan ochilib, ulash va mahalliy ruxsatlar tasdiqlangach ishlaydi. Yangilashdan oldin ishlayotgan agentni to‘xtating, yangi installerni o‘rnating; mahalliy sozlamalar va shifrlangan identifikator saqlanadi.
 
-          Ushbu paketlar Apple Developer ID/notarization va Windows Authenticode bilan imzolanmagan. OS ogohlantirishi chiqishi mumkin. CI sinovi haqiqiy foydalanuvchi kompyuteridagi amaliy sinov o‘rnini bosmaydi. Windows/macOS trafik va Safari tarixi qo‘llanmaydi.
+          Chrome/Edge/Brave uchun parollarsiz login metama’lumotlari, macOS Safari tarixi va uchala OSda qurilma trafik hisoblagichlari mavjud. Eski ulanishga yangi ruxsatlar ilovaning 3-menyusi orqali qayta rozilik va yangi ulash kodi bilan beriladi. Firefox/Safari login inventari va profilga aniq trafik atributsiyasi qo‘llanmaydi.
+
+          Ushbu paketlar Apple Developer ID/notarization va Windows Authenticode bilan imzolanmagan. OS ogohlantirishi chiqishi mumkin. CI sinovi haqiqiy foydalanuvchi kompyuteridagi amaliy sinov o‘rnini bosmaydi.
           NOTES
           tag="agent-v$VERSION"
           # Draft assets are invisible to /releases/latest until all uploads succeed.

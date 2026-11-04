@@ -40,6 +40,78 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 describe("haqiqiy komponent oʻzaro taʼsirlari", () => {
+  it("yangi Mac agent imkoniyatlari va rozilik bilan loginlar hamda trafikni ochadi", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation((url, options) => {
+        if (String(url).endsWith("/auth/csrf"))
+          return response({ csrf_token: "csrf" });
+        const body = JSON.parse(String(options?.body));
+        if (body.type === "BROWSER_LIST_REQUEST")
+          return response({
+            payload: {
+              items: [
+                {
+                  id: "chrome",
+                  name: "Chrome",
+                  profiles: [{ id: "p1", name: "Shaxsiy" }],
+                  capabilities: [
+                    "history.read",
+                    "login.inventory",
+                    "traffic.aggregate",
+                  ],
+                },
+              ],
+            },
+          });
+        if (body.type === "LOGIN_INVENTORY_QUERY")
+          return response({
+            payload: {
+              items: [
+                {
+                  domain: "fixture.test",
+                  username: "fixture-user",
+                  credential_exists: true,
+                },
+              ],
+            },
+          });
+        if (body.type === "TRAFFIC_STATS_REQUEST")
+          return response({
+            payload: {
+              received_bytes: 123,
+              sent_bytes: 456,
+              attribution: "device",
+              collected_at: "2026-11-02T10:00:00Z",
+            },
+          });
+        return response({ payload: { items: [], page: 1, page_size: 25 } });
+      });
+    mount(
+      <Explorer
+        device={{
+          ...device,
+          operating_system: "darwin",
+          scopes: [...device.scopes, "login.inventory", "traffic.aggregate"],
+        }}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Chrome/ }));
+    await user.click(screen.getByRole("button", { name: "Shaxsiy" }));
+    await user.click(screen.getByRole("tab", { name: "Loginlar" }));
+    expect(await screen.findByText("fixture-user")).toBeInTheDocument();
+    expect(screen.getByText("fixture.test")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Trafik" }));
+    expect(await screen.findByText("Qabul qilingan")).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(
+        ([, opts]) =>
+          opts?.body &&
+          JSON.parse(String(opts.body)).type === "TRAFFIC_STATS_REQUEST",
+      ),
+    ).toBe(true);
+  });
   it("kirish autentifikatsiyasiz CSRF chaqirmaydi va parolni yuboradi", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")

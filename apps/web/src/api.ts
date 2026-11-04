@@ -69,6 +69,7 @@ export type Device = {
 export type Browser = {
   id: string;
   name: string;
+  capabilities?: string[];
   profiles: { id: string; name: string }[];
 };
 export type History = {

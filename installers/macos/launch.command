@@ -8,7 +8,7 @@ mkdir -p "$bmp_home"
 chmod 700 "$bmp_home"
 printf '\nWebBrothers Agent\nBu dastur faqat sizning hisobingizda ishlaydi. Toʻxtatish: Ctrl+C.\n'
 printf 'Versiya: %s\n' "$(cat "$bmp_resources/VERSION")"
-printf '1 — Agentni ishga tushirish\n2 — Yangilanishni yuklab olish\nTanlov [1/2]: '
+printf '1 — Agentni ishga tushirish\n2 — Yangilanishni yuklab olish\n3 — Ruxsatlarni yangilash / qayta ulash\nTanlov [1/2/3]: '
 read -r bmp_choice
 if [ "$bmp_choice" = 2 ]; then
   bmp_arch="$(cat "$bmp_resources/ARCH")"
@@ -17,7 +17,7 @@ if [ "$bmp_choice" = 2 ]; then
   echo 'Yuklangan ilovani qayta oʻrnating. Ulangan qurilma sozlamalari saqlanadi.'
   exit 0
 fi
-if [ "$bmp_choice" != 1 ]; then exit 0; fi
+if [ "$bmp_choice" != 1 ] && [ "$bmp_choice" != 3 ]; then exit 0; fi
 if [ -f "$bmp_home/server" ]; then
   bmp_server="$(cat "$bmp_home/server")"
 else
@@ -41,8 +41,16 @@ export BROWSER_AGENT_KEY_PASSPHRASE="$(cat "$bmp_home/passphrase")"
 # Custom local development CA is opt-in; verification remains enabled.
 if [ -f "$bmp_home/ca.pem" ]; then export SSL_CERT_FILE="$bmp_home/ca.pem"; fi
 bmp_scopes='browser.discovery,profile.discovery,history.read'
-if [ ! -f "$bmp_home/identity.enc" ]; then
-  echo 'Quyidagi ulash kodini saytdagi Qurilma ulash boʻlimida tasdiqlang.'
-  "$bmp_resources/browser-agent" --action pair --server "$bmp_server" --state "$bmp_home/identity.enc" --scopes "$bmp_scopes"
+if [ ! -f "$bmp_home/identity.enc" ] || [ "$bmp_choice" = 3 ]; then
+  printf 'Login domenlari va foydalanuvchi nomlarini (parollarsiz) oʻqishga rozimisiz? [ha/yoʻq]: '
+  read -r bmp_login_consent
+  if [ "$bmp_login_consent" = ha ]; then bmp_scopes="$bmp_scopes,login.inventory"; fi
+  printf 'Qurilmaning jami trafik baytlarini olishga rozimisiz? [ha/yoʻq]: '
+  read -r bmp_traffic_consent
+  if [ "$bmp_traffic_consent" = ha ]; then bmp_scopes="$bmp_scopes,traffic.aggregate"; fi
+  bmp_pair_action=pair
+  if [ "$bmp_choice" = 3 ]; then bmp_pair_action=re-pair; fi
+  echo 'Quyidagi ulash kodini saytdagi Qurilma ulash boʻlimida aynan shu ruxsatlar bilan tasdiqlang.'
+  "$bmp_resources/browser-agent" --action "$bmp_pair_action" --server "$bmp_server" --state "$bmp_home/identity.enc" --scopes "$bmp_scopes"
 fi
 exec "$bmp_resources/browser-agent" --action run --server "$bmp_server" --state "$bmp_home/identity.enc" --scopes "$bmp_scopes"

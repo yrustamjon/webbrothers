@@ -24,15 +24,17 @@ Server ishonchli TLS 1.3 sertifikatiga ega boʻlishi shart. Mahalliy ishlab chiq
 ./browser-agent --action run --server https://monitor.example.uz
 ```
 
-Koʻrsatilgan kodni shaxsiy boshqaruv panelida tasdiqlang. `--scopes` aynan mahalliy rozilikni belgilaydi; server qoʻshimcha ruxsat yuborsa ham agent uni avtomatik qabul qilmaydi. `login.inventory` hozir qoʻllab-quvvatlanmaydi. Alohida `--state` bilan identifikator joyini tanlash mumkin; standart joy OS foydalanuvchi konfiguratsiyasi ichida `browser-monitoring/identity.enc`. Mavjud identifikator ustiga yozilmaydi.
+Koʻrsatilgan kodni shaxsiy boshqaruv panelida tasdiqlang. `--scopes` aynan mahalliy rozilikni belgilaydi; server qoʻshimcha ruxsat yuborsa ham agent uni avtomatik qabul qilmaydi. `login.inventory` Chromium oilasi uchun parollarsiz metamaʼlumotga ruxsat beradi. Alohida `--state` bilan identifikator joyini tanlash mumkin; standart joy OS foydalanuvchi konfiguratsiyasi ichida `browser-monitoring/identity.enc`. Mavjud identifikator ustiga yozilmaydi.
 
 ## Haqiqiy imkoniyatlar
 
 * Sinovda aniq mahalliy profil ildizi uchun `BROWSER_AGENT_PROFILE_HOME` berilishi mumkin; server uni oʻzgartira olmaydi.
-* Chrome, Edge, Brave va Firefox standart foydalanuvchi profil kataloglari aniqlanadi; har bir profil identifikatori katalog xeshidir, serverga lokal yoʻl yuborilmaydi. Safari mavjud katalogi koʻrsatiladi, tarix adapteri hali yoʻq.
+* Chrome, Edge, Brave va Firefox standart foydalanuvchi profil kataloglari aniqlanadi; har bir profil identifikatori katalog xeshidir, serverga lokal yoʻl yuborilmaydi. Safari History.db tarixi history_items/history_visits orqali faqat oʻqish rejimida olinadi; macOS maxfiylik ruxsati talab qilinishi mumkin.
 * Chromium/Firefox tarixi faqat oʻqish SQLite ulanishida, bitta izchil SELECT orqali olinadi. WAL fayllari joyida qoladi; bazalar koʻchirilmaydi yoki oʻzgartirilmaydi. Qulf/sxema xatosida aniq xato qaytariladi.
 * Tarix URL/sarlavha qidiruvi, sana, saralash, sahifalash; maksimal 200 yozuv/sahifa. 4 MiB RAM LRU kesh 15 soniyadan keyin eskiradi. Qattiq diskka tarix keshi yozilmaydi.
-* Linux `/proc/net/dev` dan qurilmaning jami bayt hisoblagichlari. Bu brauzer/profil trafik emas. HTTP metamaʼlumotlari va boshqa OS trafik yigʻuvchilari hali yoʻq.
+* Linux, macOS va Windows uchun qurilmaning jami kiruvchi/chiquvchi bayt hisoblagichlari. Bu brauzer/profil trafik emas; HTTP mazmuni, URL va paketlar ushlanmaydi. OS hisoblagichi mavjud boʻlmasa aniq xato qaytariladi.
+* Chrome/Edge/Brave `Login Data` bazasidan faqat `origin_url` va `username_value` tanlanadi, parol ustuni oʻqilmaydi. Domen va foydalanuvchi nomidan iborat eng koʻpi 200 ta login yozuvi qaytariladi; mavjud yozuv parolning haqiqiyligini tasdiqlamaydi. Firefox/Safari login inventari credential omborini ochmasdan amalga oshirilmagan.
+* Yangi brauzer javobida `capabilities` ishlaydigan boʻlimlarni bildiradi; eski agentlarda sayt qoʻllanmagan boʻlimlarni ochmaydi.
 * WSS sertifikat tekshiruvi, qurilmaga bogʻlangan Ed25519 challenge/proof, token autentifikatsiyasi, 1 MiB chegarasi, soʻrov muddati va takrorlanish tekshiruvi, jitter bilan qayta ulanish.
 
 ## Xizmat, toʻxtatish va oʻchirish
@@ -56,3 +58,7 @@ User systemd odatda foydalanuvchi kirganda boshlanadi. Boot paytida login bo‘l
 Oʻchirishdan avval dashboardda qurilmani bekor qiling. Jarayonni toʻxtatib, binar, shifrlangan identifikator va xizmat muhit faylini mahalliy oʻchiring. RAM keshi jarayon tugashi bilan yoʻqoladi. `--action clear-cache` shu cheklovni tushuntiradi; ishlayotgan boshqa jarayon keshini masofadan oʻzgartirmaydi.
 
 Imzolangan installer, hardware key storage, credential rotation, xizmatlar uchun avtomatik yangilash va toʻliq Windows/macOS sinovlari hali yoʻq. Qurilma egasi yoki OS administratori xizmatni toʻxtatishi mumkin.
+
+## Yangi ruxsatlarni yoqish
+
+Eski qurilma login/trafik ruxsatisiz ulangan boʻlsa, ilovada `3 — Ruxsatlarni yangilash / qayta ulash`ni tanlang. Login metamaʼlumoti va trafik uchun alohida `ha` roziligi soʻraladi. Yangi kodni saytda aynan shu ruxsatlar bilan tasdiqlang. CLI uchun `--action re-pair --scopes browser.discovery,profile.discovery,history.read,login.inventory,traffic.aggregate` shu ishni bajaradi. Yangi ulash tasdiqlanmaguncha eski identifikator saqlanadi; almashtirilgach mahalliy zaxira saqlanadi. Eski qurilmani dashboardda bekor qiling. Oddiy yangilash ruxsatlarni kengaytirmaydi.

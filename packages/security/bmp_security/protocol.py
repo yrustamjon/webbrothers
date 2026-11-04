@@ -208,9 +208,17 @@ def _response_payload(kind: str, payload: dict) -> None:
         _fail("invalid_payload_schema")
     for item in items:
         if kind == "BROWSER_LIST_REQUEST":
-            _fields(item, {"id", "name", "profiles"})
+            _fields(item, {"id", "name", "profiles"}, {"capabilities"})
             _text(item["id"])
             _string(item["name"], 512)
+            if "capabilities" in item:
+                capabilities = item["capabilities"]
+                if (not isinstance(capabilities, list) or len(capabilities) > 3
+                        or any(not isinstance(c, str) or c not in {
+                            "history.read", "login.inventory", "traffic.aggregate"
+                        } for c in capabilities)
+                        or len(set(capabilities)) != len(capabilities)):
+                    _fail("invalid_payload_schema")
             if not isinstance(item["profiles"], list) or len(item["profiles"]) > 1000:
                 _fail("invalid_payload_schema")
             for profile in item["profiles"]:

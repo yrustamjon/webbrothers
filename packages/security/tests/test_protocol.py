@@ -17,6 +17,19 @@ def request(**changes):
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_browser_capabilities_are_optional_and_strict(self):
+        original = request(type="BROWSER_LIST_REQUEST", scope="browser.discovery", params={})
+        response = {key: value for key, value in original.items() if key != "params"}
+        browser = {"id": "chrome", "name": "Chrome", "profiles": []}
+        response.update(type="BROWSER_LIST_RESPONSE", payload={"items": [browser]})
+        validate_response(response, original, NOW)
+        browser["capabilities"] = ["history.read", "login.inventory", "traffic.aggregate"]
+        validate_response(response, original, NOW)
+        for capabilities in (["password.read"], ["history.read", "history.read"], "history.read", [{}]):
+            browser["capabilities"] = capabilities
+            with self.subTest(capabilities=capabilities), self.assertRaises(ProtocolError):
+                validate_response(response, original, NOW)
+
     def validate(self, value):
         return validate_request(value, "device-1", {"history.read"}, NOW)
 

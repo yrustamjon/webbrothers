@@ -73,7 +73,7 @@ Bu sinov oʻzining vaqtinchalik profili va hisoblaridan foydalanadi; haqiqiy sha
 
 ## Holat va chegaralar
 
-Bu faol ishlab chiqilayotgan tizim. Qoʻllanmagan imkoniyatlar soxta natija oʻrniga aniq xato bilan koʻrsatiladi. Login inventari uchun xavfsiz brauzer integratsiyasi hali yoʻq; parollar/vault/cookie oʻqilmaydi. HTTP metamaʼlumotlari va profilga aniq trafik atributsiyasi hali yoʻq; HTTPS trafik ushlanmaydi yoki ochilmaydi. Trafik grafigi hozir qurilma hisoblagichlarini davriy soʻrashga asoslangan.
+Bu faol ishlab chiqilayotgan tizim. Qoʻllanmagan imkoniyatlar soxta natija oʻrniga aniq xato bilan koʻrsatiladi. Chrome, Edge va Brave uchun login domeni va foydalanuvchi nomi read-only olinadi; parol qiymati/cookie oʻqilmaydi. Firefox va Safari login inventari shifrlangan credential omborini ochishni talab qilgani uchun qoʻllanmaydi. Safari tarixi va Linux/macOS/Windows qurilma trafik hisoblagichlari qoʻshilgan; yangi ruxsatlar faqat qayta rozilik va ulash bilan beriladi. HTTP metamaʼlumotlari va profilga aniq trafik atributsiyasi hali yoʻq; HTTPS trafik ushlanmaydi yoki ochilmaydi. Trafik grafigi hozir qurilma hisoblagichlarini davriy soʻrashga asoslangan.
 
 Hozir router bir API jarayonida ishlaydi. Redis koʻp-worker koordinatsiyasi, MFA, delegatsiyalangan ruxsatlar, OS keychain integratsiyasi, avtomatik imzolangan yangilanishlar va toʻliq platforma oʻrnatish sinovlari alohida ishlar. Windows/macOS binarini kompilyatsiyalash u yerda amaliy tekshiruv oʻtkazilganini anglatmaydi. CI binarlari imzolanmagan sinov artefaktlari; production paketlari deb tarqatmang.
 

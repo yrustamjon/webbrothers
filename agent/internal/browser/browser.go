@@ -139,7 +139,7 @@ func History(browsers []Browser, q Query) (Page, error) {
 		return result, errors.New("Profil topilmadi yoki ruxsat yoʻq")
 	}
 	if q.BrowserID == "safari" {
-		return result, errors.New("Safari tarixi hozircha qoʻllab-quvvatlanmaydi")
+		return safariHistory(path, q)
 	}
 	file := "History"
 	query := `SELECT substr(url,1,8192),substr(title,1,2048),last_visit_time,visit_count FROM urls WHERE (url LIKE ? ESCAPE '\' OR title LIKE ? ESCAPE '\')`

@@ -5,7 +5,7 @@ bmp_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$bmp_root"
 umask 077
 bmp_action="${1:-}"
-case "$bmp_action" in pair|run) ;; *) echo 'Foydalanish: bash scripts/agent-local.sh pair|run' >&2; exit 1;; esac
+case "$bmp_action" in pair|re-pair|run) ;; *) echo 'Foydalanish: bash scripts/agent-local.sh pair|re-pair|run' >&2; exit 1;; esac
 if [ ! -x agent/bin/browser-agent ] || [ ! -x .venv/bin/python ]; then
   echo 'Avval bash scripts/setup-local.sh bajaring.' >&2
   exit 1

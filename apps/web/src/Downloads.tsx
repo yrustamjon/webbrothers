@@ -151,8 +151,9 @@ export default function Downloads() {
         <p className="muted">
           Paket mavjudligi Windows/macOSda amaliy sinov yoki OS imzosi borligini
           anglatmaydi. Imzo va tekshiruv holatini nashr tafsilotlaridan koʻring.
-          Windows/macOS trafik yigʻish, Safari tarixi va login inventari hali
-          qoʻllanmaydi.
+          Qurilma trafik hisoblagichlari Windows/macOSda mavjud; Safari tarixi
+          macOS ruxsatlariga bogʻliq. Login metamaʼlumotlari Chrome/Edge/Brave
+          uchun; Firefox/Safari login inventari qoʻllanmaydi.
         </p>
       </section>
       <details className="panel">
@@ -354,9 +355,9 @@ function SignedBinaries() {
         </p>
       )}
       <p className="muted">
-        Linux trafik yigʻindisi qoʻllanadi; Windows/macOS trafik va Safari
-        tarixi hali qoʻllanmaydi. Login inventari hozir qoʻllanmaydi. Paket
-        mavjudligi OS sinovidan oʻtganlik kafolati emas.
+        Linux/Windows/macOS qurilma trafik yigʻindisi, Safari tarixi va Chromium
+        oilasida parollarsiz login metamaʼlumotlari mavjud. Paket mavjudligi OS
+        sinovidan oʻtganlik kafolati emas.
       </p>
       <h3>Oʻchirish</h3>
       <p>

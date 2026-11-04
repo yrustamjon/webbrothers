@@ -46,7 +46,7 @@ Server terminali ochiq tursin. Boshqa terminalda repozitoriy ildizidan agentni u
 bash scripts/agent-local.sh pair
 ```
 
-Agent chiqargan qisqa muddatli kodni dashboarddagi **Qurilma ulash** boʻlimida tasdiqlang. Mahalliy ruxsatlar: brauzerlarni aniqlash, profillarni aniqlash va tarixni oʻqish. Dashboardda ham faqat shu ruxsatlarni tanlang; macOSda ishlamaydigan trafik yoki login inventarini tanlamang.
+Agent chiqargan qisqa muddatli kodni dashboarddagi **Qurilma ulash** boʻlimida tasdiqlang. Mahalliy ruxsatlar: brauzerlarni aniqlash, profillarni aniqlash va tarixni oʻqish. Mahalliy launcher yangi ulashda login metamaʼlumotlari va qurilma trafik hisoblagichlari uchun alohida rozilik soʻraydi; dashboardda aynan tanlangan ruxsatlarni tasdiqlang.
 
 Ulash yakunlangach:
 
@@ -93,13 +93,13 @@ npm --prefix apps/web run build
 
 Bu testlar avtomatlashtirilgan kod tekshiruvlari; haqiqiy macOS brauzer profili, mahalliy huquqlar va xizmat ishlashini alohida tekshirish zarur.
 
-`scripts/smoke.py` macOSda ham vaqtinchalik sunʼiy Chrome profili bilan ishlaydi. Trafik yigʻish faqat Linuxda tekshiriladi; macOSda bu funksiya qoʻllanmaydi.
+`scripts/smoke.py` macOSda vaqtinchalik sunʼiy Chrome/Safari profillari, login metamaʼlumotlari va qurilma hisoblagichlari bilan ishlaydi; haqiqiy profilga tegmaydi.
 
 ## macOSdagi haqiqiy imkoniyatlar va cheklovlar
 
 - Chrome, Edge, Brave va Firefoxning standart foydalanuvchi profillari va faqat oʻqish tarix adapterlari mavjud. Agent aynan sizning OS foydalanuvchingiz nomidan ishlasin; `sudo` ishlatmang. Mavjud boʻlmagan profil yoki OS ruxsati yoʻqligi xato sifatida koʻrsatiladi.
-- Safari katalogi aniqlanishi mumkin, ammo Safari tarix adapteri hali yoʻq. Brauzer versiyasini aniqlash barcha holatda mavjud emas.
-- macOS trafik yigʻuvchisi, HTTP metamaʼlumotlari va login inventari hali qoʻllanmaydi. Linuxning qurilma trafik yigʻindisini macOS natijasi sifatida koʻrsatmaymiz.
+- Safari History.db read-only adapteri mavjud. macOS ruxsat bermasa System Settings → Privacy & Security → Full Disk Access orqali agentni boshlayotgan Terminal uchun oʻzingiz ruxsat berishingiz kerak boʻlishi mumkin. Agent buni avtomatik yoqmaydi; `sudo` ishlatmang. Brauzer versiyasini aniqlash barcha holatda mavjud emas.
+- macOS qurilma bayt hisoblagichlari va Chrome/Edge/Brave parollarsiz login inventari mavjud. HTTP metamaʼlumotlari, profilga trafik atributsiyasi, Firefox/Safari login credential inventari qoʻllanmaydi.
 - Mahalliy identifikator shifrlanadi; Keychain/Secure Enclave bilan avtomatik integratsiya hali mavjud emas. Kuchli mahalliy parol va OS fayl ruxsatlari talab qilinadi.
 - `installers/macos/` ichida LaunchAgent namunasi bor, ammo tayyor avtomatik installer yoki tekshirilgan macOS background-service paketi deb hisoblanmaydi. Dastlab foreground rejimida tekshiring; toʻxtatish uchun Ctrl+C yetarli.
 - Ushbu koʻrsatmalar Linux CI tekshiruvlaridan alohida: haqiqiy macOS oʻrnatish, OS huquqlari va xizmatning qayta yuklangandan keyingi ishlashi macOSda tekshirilishi kerak.

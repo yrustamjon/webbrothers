@@ -325,17 +325,79 @@ function HistoryView({
     </section>
   );
 }
+function Inventory({
+  device,
+  browser,
+  profile,
+}: {
+  device: string;
+  browser: string;
+  profile: string;
+}) {
+  const inventory = useQuery<{
+    items: { domain: string; username: string; credential_exists: boolean }[];
+  }>({
+    queryKey: ["inventory", device, browser, profile],
+    queryFn: async () =>
+      unwrap(
+        await queryAgent(device, "LOGIN_INVENTORY_QUERY", {
+          browser_id: browser,
+          profile_id: profile,
+        }),
+      ),
+  });
+  return (
+    <section>
+      <h2>Saqlangan loginlar</h2>
+      <p>
+        Faqat sayt domeni va foydalanuvchi nomi olinadi. Parol qiymatlari,
+        cookie va tokenlar oʻqilmaydi. Eng koʻpi 200 ta yozuv koʻrsatiladi.
+      </p>
+      <button
+        className="secondary"
+        onClick={() => inventory.refetch()}
+        disabled={inventory.isFetching}
+      >
+        Loginlarni yangilash
+      </button>
+      <ErrorBox error={inventory.error} />
+      {inventory.isFetching && <p role="status">Loginlar olinmoqda…</p>}
+      {inventory.data && (
+        <>
+          {!inventory.data.items.length ? (
+            <p>Bu profilda saqlangan login topilmadi.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Sayt</th>
+                  <th>Foydalanuvchi</th>
+                  <th>Holat</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inventory.data.items.map((item, index) => (
+                  <tr key={index}>
+                    <td>{item.domain}</td>
+                    <td>{item.username || "Koʻrsatilmagan"}</td>
+                    <td>
+                      {item.credential_exists
+                        ? "Saqlangan login yozuvi"
+                        : "Login mavjud emas"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
 export function Explorer({ device }: { device: Device }) {
   const selection = useSelection();
   const [tab, setTab] = useState("history");
-  const tabs = [
-    ...(device.scopes.includes("history.read") ? [["history", "Tarix"]] : []),
-    ...(device.operating_system === "linux" &&
-    device.scopes.includes("traffic.aggregate")
-      ? [["traffic", "Trafik"]]
-      : []),
-  ];
-  const activeTab = tabs.some(([key]) => key === tab) ? tab : tabs[0]?.[0];
   const browsers = useQuery<{ items: Browser[] }>({
     queryKey: ["browsers", device.id],
     queryFn: async () =>
@@ -350,6 +412,20 @@ export function Explorer({ device }: { device: Device }) {
   const selectedProfile = selectedBrowser?.profiles.find(
     (p) => p.id === selection.profile,
   );
+  const capabilities = selectedBrowser?.capabilities;
+  const has = (scope: string) =>
+    device.scopes.includes(scope) &&
+    (capabilities
+      ? capabilities.includes(scope)
+      : scope === "history.read"
+        ? selectedBrowser?.id !== "safari"
+        : scope === "traffic.aggregate" && device.operating_system === "linux");
+  const tabs = [
+    ...(has("history.read") ? [["history", "Tarix"]] : []),
+    ...(has("login.inventory") ? [["inventory", "Loginlar"]] : []),
+    ...(has("traffic.aggregate") ? [["traffic", "Trafik"]] : []),
+  ];
+  const activeTab = tabs.some(([key]) => key === tab) ? tab : tabs[0]?.[0];
   return (
     <section className="panel">
       <h2>{device.display_name}</h2>
@@ -358,6 +434,14 @@ export function Explorer({ device }: { device: Device }) {
         {device.status === "online" ? "Tarmoqda" : "Tarmoqdan tashqarida"}
       </p>
       <DeviceSettings device={device} />
+      {(!device.scopes.includes("login.inventory") ||
+        !device.scopes.includes("traffic.aggregate")) && (
+        <p className="muted">
+          Loginlar va trafik uchun yangi agentni ochib, “Ruxsatlarni yangilash /
+          qayta ulash”ni tanlang. Yangi ulash kodini tasdiqlaganda kerakli
+          ruxsatlarni belgilang.
+        </p>
+      )}
       {device.monitoring_paused ? (
         <p role="status">
           Kuzatuv toʻxtatilgan. Maʼlumot olish uchun uni davom ettiring.
@@ -446,6 +530,13 @@ export function Explorer({ device }: { device: Device }) {
                       profile={selectedProfile.id}
                     />
                   )}{" "}
+                  {activeTab === "inventory" && (
+                    <Inventory
+                      device={device.id}
+                      browser={selectedBrowser.id}
+                      profile={selectedProfile.id}
+                    />
+                  )}
                   {!tabs.length && (
                     <p role="status">
                       Bu profil uchun maʼlumot oʻqish ruxsati berilmagan.

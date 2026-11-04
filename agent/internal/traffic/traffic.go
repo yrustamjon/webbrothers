@@ -3,8 +3,6 @@ package traffic
 import (
 	"bufio"
 	"errors"
-	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -17,17 +15,6 @@ type Stats struct {
 	CollectedAt string `json:"collected_at"`
 }
 
-func Collect() (Stats, error) {
-	if runtime.GOOS != "linux" {
-		return Stats{}, errors.New("Bu OS uchun trafik yigʻish qoʻllab-quvvatlanmaydi")
-	}
-	f, e := os.Open("/proc/net/dev")
-	if e != nil {
-		return Stats{}, e
-	}
-	defer f.Close()
-	return Parse(bufio.NewScanner(f))
-}
 func Parse(s *bufio.Scanner) (Stats, error) {
 	r := Stats{Attribution: "device", CollectedAt: time.Now().UTC().Format(time.RFC3339)}
 	for s.Scan() {
