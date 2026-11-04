@@ -38,6 +38,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       CGO_ENABLED: '1'
+      PYTHONUTF8: '1'
       VERSION: 0.1.${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4

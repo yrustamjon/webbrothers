@@ -68,6 +68,10 @@ def server(directory):
 
 
 def main():
+    # Windows redirected stdout can default to cp1252; all test messages are UTF-8.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--agent', type=Path)
     parser.add_argument('--server-child', type=Path)
@@ -84,6 +88,7 @@ def main():
         certificates(directory)
         env = os.environ.copy()
         env.update(DATABASE_URL='sqlite:///'+(directory/'metadata.db').as_posix(),
+                   PYTHONUTF8='1', PYTHONIOENCODING='utf-8',
                    PUBLIC_ORIGIN=f'https://localhost:{args.port}', BMP_DEVELOPMENT='0', BMP_AUTO_CREATE='0',
                    BMP_NATIVE_QA_PORT=str(args.port),
                    PYTHONPATH=os.pathsep.join([str(ROOT/'apps/api'), str(ROOT/'packages/security')]))
