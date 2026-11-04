@@ -2,6 +2,7 @@
 """Portable native HTTPS/WSS test with a private temporary DB and synthetic profiles."""
 
 import argparse
+from contextlib import closing
 import datetime
 import ipaddress
 import os
@@ -105,7 +106,7 @@ def main():
                 raise RuntimeError('Izolyatsiyalangan HTTPS server tayyor boʻlmadi')
             subprocess.run([sys.executable, str(ROOT/'scripts/smoke.py'), '--base-url', env['PUBLIC_ORIGIN'],
                             '--ca-file', str(directory/'ca.pem'), '--agent', str(args.agent.resolve())], env=env, check=True)
-            with sqlite3.connect(directory/'metadata.db') as database:
+            with closing(sqlite3.connect(directory/'metadata.db')) as database:
                 dump = '\n'.join(database.iterdump())
             for sentinel in ('synthetic.example.test', 'safari-synthetic.example.test', 'fixture-user', 'fixture-profile@example.test', 'never-return-this-secret'):
                 if sentinel in dump:

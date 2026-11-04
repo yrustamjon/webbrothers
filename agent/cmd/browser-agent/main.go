@@ -203,14 +203,14 @@ func pair(ctx context.Context, server, path, pass, scopes string) error {
 }
 func decode(raw json.RawMessage, out any) error { return protocol.Decode(raw, out) }
 
-func handle(m protocol.Message, c *cache.Cache) (any, error) {
+func handle(m protocol.Message, c *cache.Cache, includeProfiles ...bool) (any, error) {
 	if m.Type == "TRAFFIC_STATS_REQUEST" {
 		if e := decode(m.Params, &struct{}{}); e != nil {
 			return nil, errors.New("Parametrlar notoʻgʻri")
 		}
 		return traffic.Collect()
 	}
-	b, e := browser.Current()
+	b, e := browser.Current(includeProfiles...)
 	if e != nil {
 		return nil, e
 	}
@@ -377,7 +377,9 @@ func serve(ctx context.Context, server string, i identity.Identity) error {
 			}
 			continue
 		}
-		payload, err := handle(m, c)
+		// A browser-only grant must not reveal profile names or account emails.
+		includeProfiles := m.Type != "BROWSER_LIST_REQUEST" || v.Allowed["profile.discovery"]
+		payload, err := handle(m, c, includeProfiles)
 		r := m
 		r.Params = nil
 		r.Type = protocol.Responses[m.Type]

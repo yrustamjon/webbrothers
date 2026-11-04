@@ -50,7 +50,7 @@ type Query struct {
 }
 
 func id(path string) string { h := sha256.Sum256([]byte(path)); return hex.EncodeToString(h[:12]) }
-func Discover(home, platform string) []Browser {
+func Discover(home, platform string, includeProfiles ...bool) []Browser {
 	roots := map[string]string{}
 	names := map[string]string{"chrome": "Google Chrome", "edge": "Microsoft Edge", "brave": "Brave", "firefox": "Mozilla Firefox", "safari": "Safari"}
 	switch platform {
@@ -80,6 +80,10 @@ func Discover(home, platform string) []Browser {
 			continue
 		}
 		b := Browser{ID: key, Name: names[key], Profiles: []Profile{}}
+		if len(includeProfiles) > 0 && !includeProfiles[0] {
+			out = append(out, b)
+			continue
+		}
 		var profileNames map[string]chromiumProfileInfo
 		if key == "chrome" || key == "edge" || key == "brave" {
 			profileNames = chromiumProfileNames(root)
@@ -108,7 +112,8 @@ func Discover(home, platform string) []Browser {
 				continue
 			}
 			label := e.Name()
-			if metadata, ok := profileNames[e.Name()]; ok {
+			if key == "chrome" || key == "edge" || key == "brave" {
+				metadata := chromiumProfileMetadata(p, profileNames[e.Name()])
 				label = profileDisplayName(e.Name(), metadata)
 			}
 			b.Profiles = append(b.Profiles, Profile{id(p), label, p})
@@ -117,7 +122,7 @@ func Discover(home, platform string) []Browser {
 	}
 	return out
 }
-func Current() ([]Browser, error) {
+func Current(includeProfiles ...bool) ([]Browser, error) {
 	h, e := os.UserHomeDir()
 	if explicit := os.Getenv("BROWSER_AGENT_PROFILE_HOME"); explicit != "" {
 		h = explicit
@@ -126,7 +131,7 @@ func Current() ([]Browser, error) {
 	if e != nil {
 		return nil, e
 	}
-	return Discover(h, runtime.GOOS), nil
+	return Discover(h, runtime.GOOS, includeProfiles...), nil
 }
 func History(browsers []Browser, q Query) (Page, error) {
 	result := Page{Items: []Visit{}, Page: q.Page, PageSize: q.PageSize}

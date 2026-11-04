@@ -121,4 +121,58 @@ func TestProfileDisplayNameFallbackAndLimits(t *testing.T) {
 	if len([]rune(label)) != 512 {
 		t.Fatal("profile label exceeds protocol limit")
 	}
+	if !strings.Contains(label, "person@example.test") {
+		t.Fatal("long display name hid the real account email")
+	}
+}
+
+func TestBrowserOnlyDiscoveryDoesNotExposeProfileEmails(t *testing.T) {
+	home, root := chromiumMetadataFixture(t)
+	if err := os.WriteFile(filepath.Join(root, "Local State"), []byte(`{"profile":{"info_cache":{"Default":{"name":"Private","user_name":"private@example.test"}}}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	browsers := Discover(home, "linux", false)
+	if len(browsers) != 1 || len(browsers[0].Profiles) != 0 {
+		t.Fatal("browser-only discovery included profiles")
+	}
+	encoded, err := json.Marshal(browsers)
+	if err != nil || strings.Contains(string(encoded), "private@example.test") {
+		t.Fatal("profile email escaped without profile discovery permission")
+	}
+}
+
+func TestProfilePreferencesEmailFallbackDoesNotGuessAccounts(t *testing.T) {
+	for _, test := range []struct {
+		preferences string
+		primaryID   string
+		wantEmail   string
+	}{
+		{`{"account_info":[{"email":"primary@example.test","gaia":"one"}],"profile":{"name":"Work"}}`, "", "primary@example.test"},
+		{`{"account_info":[{"email":"first@example.test","gaia":"one"},{"email":"second@example.test","gaia":"two"}]}`, "", ""},
+		{`{"account_info":[{"email":"first@example.test","gaia":"one"},{"email":"second@example.test","gaia":"two"}]}`, "two", "second@example.test"},
+		{`{"account_info":[{"email":"not-an-email"}]}`, "", ""},
+		{`{"account_info":[{"email":"primary@example.test"}]} {}`, "", ""},
+	} {
+		t.Run(test.primaryID+test.wantEmail+test.preferences, func(t *testing.T) {
+			profile := t.TempDir()
+			if err := os.WriteFile(filepath.Join(profile, "Preferences"), []byte(test.preferences), 0600); err != nil {
+				t.Fatal(err)
+			}
+			info := chromiumProfileMetadata(profile, chromiumProfileInfo{GaiaID: test.primaryID})
+			if info.UserName != test.wantEmail {
+				t.Fatalf("account metadata mismatch: got %q, want %q", info.UserName, test.wantEmail)
+			}
+		})
+	}
+}
+
+func TestPreferencesFallbackIsUsedByDiscovery(t *testing.T) {
+	home, root := chromiumMetadataFixture(t)
+	if err := os.WriteFile(filepath.Join(root, "Profile 1", "Preferences"), []byte(`{"account_info":[{"email":"actual@example.test"}],"profile":{"name":"Work"},"unrelated_secret":"must-not-leave"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := json.Marshal(Discover(home, "linux"))
+	if err != nil || !strings.Contains(string(encoded), "actual@example.test") || strings.Contains(string(encoded), "must-not-leave") {
+		t.Fatal("discovery did not isolate account metadata")
+	}
 }

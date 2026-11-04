@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: agent-installers
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -44,6 +44,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
+          cache-dependency-path: agent/go.sum
       - name: Native agent tests
         working-directory: agent
         run: go test -race ./...
@@ -112,12 +113,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # A newer main commit must never be replaced by an older build.
-          latest_sha="$(gh api "repos/$GH_REPO/commits/main" --jq .sha)"
-          if [ "$latest_sha" != "$RELEASE_SHA" ]; then
-            echo 'Newer main commit exists; this build stays an Actions artifact.'
-            exit 0
-          fi
+          # Concurrency cancels superseded installer builds. Frontend-only commits
+          # must not suppress a complete, tested agent release for this SHA.
           cd release-dist
           test -s bmp-agent-darwin-amd64.dmg
           test -s bmp-agent-darwin-arm64.dmg

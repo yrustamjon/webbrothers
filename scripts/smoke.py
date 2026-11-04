@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Haqiqiy Go agenti bilan izolyatsiyalangan HTTPS/WSS integratsiya sinovi."""
 import argparse
+from contextlib import closing
 import http.cookiejar
 import json
 import os
@@ -58,18 +59,18 @@ def main():
         profile = root/chrome_root/'Default'
         profile.mkdir(parents=True)
         (profile.parent/'Local State').write_text(json.dumps({'profile':{'info_cache':{'Default':{'name':'QA profili','user_name':'fixture-profile@example.test'}}}}))
-        with sqlite3.connect(profile/'History') as db:
+        with closing(sqlite3.connect(profile/'History')) as db, db:
             db.executescript('CREATE TABLE urls(id INTEGER PRIMARY KEY,url TEXT,title TEXT,visit_count INTEGER,last_visit_time INTEGER); CREATE TABLE visits(id INTEGER PRIMARY KEY,url INTEGER,visit_time INTEGER);')
             chrome_time = int((time.time()+11644473600)*1000000)
             db.execute('INSERT INTO urls VALUES(1,?,?,1,?)',('https://synthetic.example.test/qa','Sintetik QA sahifasi',chrome_time))
             db.execute('INSERT INTO visits VALUES(1,1,?)',(chrome_time,))
-        with sqlite3.connect(profile/'Login Data') as db:
+        with closing(sqlite3.connect(profile/'Login Data')) as db, db:
             db.executescript('CREATE TABLE logins(origin_url TEXT, username_value TEXT, password_value BLOB, blacklisted_by_user INTEGER);')
             db.execute('INSERT INTO logins VALUES(?,?,?,0)', ('https://synthetic.example.test/login', 'fixture-user', b'never-return-this-secret'))
         if sys.platform == 'darwin':
             safari = root/'Library/Safari'
             safari.mkdir(parents=True)
-            with sqlite3.connect(safari/'History.db') as db:
+            with closing(sqlite3.connect(safari/'History.db')) as db, db:
                 db.executescript('CREATE TABLE history_items(id INTEGER PRIMARY KEY,url TEXT,visit_count INTEGER); CREATE TABLE history_visits(id INTEGER PRIMARY KEY,history_item INTEGER,visit_time REAL,title TEXT);')
                 db.execute('INSERT INTO history_items VALUES(1,?,1)', ('https://safari-synthetic.example.test/qa',))
                 db.execute('INSERT INTO history_visits VALUES(1,1,?,?)', (time.time()-978307200, 'Sintetik Safari sahifasi'))

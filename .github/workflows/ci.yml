@@ -57,7 +57,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.13'}
       - uses: actions/setup-go@v5
-        with: {go-version: 'stable'}
+        with: {go-version: 'stable', cache-dependency-path: agent/go.sum}
       - run: python -m pip install -r apps/api/requirements-dev.txt
       - run: go build -o /tmp/browser-agent ./cmd/browser-agent
         working-directory: agent
@@ -94,7 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: 'stable'}
+        with: {go-version: 'stable', cache-dependency-path: agent/go.sum}
       - run: go test -race ./...
         working-directory: agent
         env: {CGO_ENABLED: '1'}

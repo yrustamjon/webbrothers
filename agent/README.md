@@ -35,6 +35,7 @@ Koʻrsatilgan kodni shaxsiy boshqaruv panelida tasdiqlang. `--scopes` aynan maha
 * Linux, macOS va Windows uchun qurilmaning jami kiruvchi/chiquvchi bayt hisoblagichlari. Bu brauzer/profil trafik emas; HTTP mazmuni, URL va paketlar ushlanmaydi. OS hisoblagichi mavjud boʻlmasa aniq xato qaytariladi.
 * Chrome/Edge/Brave `Login Data` bazasidan faqat `origin_url` va `username_value` tanlanadi, parol ustuni oʻqilmaydi. Domen va foydalanuvchi nomidan iborat eng koʻpi 200 ta login yozuvi qaytariladi; mavjud yozuv parolning haqiqiyligini tasdiqlamaydi. Firefox/Safari login inventari credential omborini ochmasdan amalga oshirilmagan.
 * Yangi brauzer javobida `capabilities` ishlaydigan boʻlimlarni bildiradi; eski agentlarda sayt qoʻllanmagan boʻlimlarni ochmaydi.
+* Chromium profil nomi va hisob emaili `Local State`ning `profile.info_cache` metamaʼlumotidan olinadi. Email yetishmasa profil `Preferences`idagi aniq yagona yoki primary Gaia IDga mos hisob tekshiriladi; bir nechta noaniq hisob orasidan taxmin qilinmaydi. Bu metamaʼlumotlar ham `profile.discovery` ruxsatiga bogʻlangan. Eski agent email yubormasa sayt “Email hali olinmagan” deb koʻrsatadi.
 * WSS sertifikat tekshiruvi, qurilmaga bogʻlangan Ed25519 challenge/proof, token autentifikatsiyasi, 1 MiB chegarasi, soʻrov muddati va takrorlanish tekshiruvi, jitter bilan qayta ulanish.
 
 ## Xizmat, toʻxtatish va oʻchirish

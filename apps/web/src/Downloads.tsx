@@ -25,7 +25,13 @@ type Installer = {
   sha256: string;
 };
 
-export default function Downloads() {
+export default function Downloads({
+  onDownload,
+  onPair,
+}: {
+  onDownload?: () => void;
+  onPair?: () => void;
+}) {
   const [platform, setPlatform] = useState(
     /Mac/i.test(navigator.platform) ? "darwin" : "windows",
   );
@@ -45,11 +51,12 @@ export default function Downloads() {
   );
   return (
     <>
-      <section className="panel">
+      <section className="panel download-panel">
+        <p className="eyebrow">1-BOSQICH · AGENT</p>
         <h1>Agent ilovasini oʻrnatish</h1>
-        <p>
-          Windows va macOS uchun oxirgi nashr GitHub Releases orqali olinadi.
-          Roʻyxat har daqiqada va sahifaga qaytganingizda yangilanadi.
+        <p className="section-description">
+          Kompyuteringizga mos ilovani tanlang. Bu yerda doim oxirgi chiqarilgan
+          versiya koʻrsatiladi.
         </p>
         <div className="filters">
           <label>
@@ -103,58 +110,112 @@ export default function Downloads() {
           </p>
         )}
         {selected && (
-          <article className="release">
-            <h2>Oxirgi versiya: {selected.version}</h2>
-            <p>{selected.filename}</p>
-            <p>
-              <a href={selected.download_url} rel="noreferrer">
-                {platform === "darwin" ? "macOS" : "Windows"} ilovasini yuklab
-                olish
-              </a>
-            </p>
-            <p>
-              <a href={selected.release_url} target="_blank" rel="noreferrer">
-                Nashr tafsilotlari va tekshiruv fayllari
-              </a>
-            </p>
-            {selected.sha256 && (
-              <details>
-                <summary>SHA-256 nazorat summasi</summary>
-                <code>{selected.sha256}</code>
+          <article className="release installer-card">
+            <span className="installer-platform" aria-hidden="true">
+              {platform === "darwin" ? "mac" : "win"}
+            </span>
+            <div className="installer-copy">
+              <span className="release-badge">OXIRGI NASHR</span>
+              <h2>Oxirgi versiya: {selected.version}</h2>
+              <p>
+                {platform === "darwin" ? "macOS" : "Windows"} ·{" "}
+                {arch === "arm64"
+                  ? "Apple Silicon"
+                  : platform === "darwin"
+                    ? "Intel Mac"
+                    : "64-bit"}
+              </p>
+              <p>
+                <a
+                  className="button-link"
+                  href={selected.download_url}
+                  rel="noreferrer"
+                  onClick={onDownload}
+                >
+                  {platform === "darwin" ? "macOS" : "Windows"} ilovasini yuklab
+                  olish
+                </a>
+              </p>
+              <details className="release-details">
+                <summary>Nashr va fayl tafsilotlari</summary>
+                <p>{selected.filename}</p>
+                <p>
+                  <a
+                    href={selected.release_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Nashr tafsilotlari va tekshiruv fayllari
+                  </a>
+                </p>
+                {selected.sha256 && (
+                  <details>
+                    <summary>SHA-256 nazorat summasi</summary>
+                    <code>{selected.sha256}</code>
+                  </details>
+                )}
               </details>
-            )}
+            </div>
           </article>
         )}
-        <h2>Oʻrnatish va ulash</h2>
-        <ol>
-          <li>
-            {platform === "darwin"
-              ? "DMG faylini oching, WebBrothers Agent ilovasini Applications katalogiga koʻchiring va oching."
-              : "Setup faylini ochib oʻrnating. Start menyusidan WebBrothers Agent ilovasini oching."}
-          </li>
-          <li>
-            Ilova oynasida serverning HTTPS manzilini kiriting. Brauzer va
-            profilni aniqlash hamda tarixni oʻqishga faqat roziligingiz bilan
-            ruxsat bering.
-          </li>
-          <li>
-            Ilovadagi ulash kodini saytdagi “Qurilma ulash” boʻlimida
-            tasdiqlang. Agent ishlayotgan oynani ochiq qoldiring; toʻxtatish
-            uchun Ctrl+C.
-          </li>
-        </ol>
-        <p>
-          Yangilash uchun agentni toʻxtating va shu sahifadagi oxirgi versiyani
-          qayta oʻrnating. Mahalliy ulanish va sozlamalar saqlanadi. Avtomatik
-          yangilanish yoki fonda ishga tushish hozir yoqilmagan.
-        </p>
-        <p className="muted">
-          Paket mavjudligi Windows/macOSda amaliy sinov yoki OS imzosi borligini
-          anglatmaydi. Imzo va tekshiruv holatini nashr tafsilotlaridan koʻring.
-          Qurilma trafik hisoblagichlari Windows/macOSda mavjud; Safari tarixi
-          macOS ruxsatlariga bogʻliq. Login metamaʼlumotlari Chrome/Edge/Brave
-          uchun; Firefox/Safari login inventari qoʻllanmaydi.
-        </p>
+        <div className="installation-guide" id="installation-guide">
+          <p className="eyebrow">2-BOSQICH · KOMPYUTERINGIZDA</p>
+          <h2>Oʻrnatish va ulash</h2>
+          <ol className="install-steps">
+            <li>
+              <strong>Ilovani oʻrnating va oching</strong>
+              <p>
+                {platform === "darwin"
+                  ? "DMG faylini oching, WebBrothers Agent ilovasini Applications katalogiga koʻchiring va oching."
+                  : "Setup faylini ochib oʻrnating. Start menyusidan WebBrothers Agent ilovasini oching."}
+              </p>
+            </li>
+            <li>
+              <strong>Server va ruxsatlarni tanlang</strong>
+              <p>
+                Ilova oynasida serverning HTTPS manzilini kiriting. Brauzer va
+                profilni aniqlash hamda tarixni oʻqishga faqat roziligingiz
+                bilan ruxsat bering.
+              </p>
+              {location.origin.startsWith("https://") && (
+                <div className="server-address">
+                  <small>Ushbu ish maydoni manzili</small>
+                  <code>{location.origin}</code>
+                </div>
+              )}
+            </li>
+            <li>
+              <strong>Kod tayyor boʻlsa, shu yerga qayting</strong>
+              <p>
+                Ilovadagi ulash kodini saytdagi “Qurilma ulash” boʻlimida
+                tasdiqlang. Agent ishlayotgan oynani ochiq qoldiring; toʻxtatish
+                uchun Ctrl+C.
+              </p>
+            </li>
+          </ol>
+          {onPair && (
+            <div className="install-next">
+              <span>Agentda ulash kodi koʻrindimi?</span>
+              <button onClick={onPair}>Kodni tasdiqlashga oʻtish →</button>
+            </div>
+          )}
+        </div>
+        <details className="install-notes">
+          <summary>Yangilash va qoʻllab-quvvatlash</summary>
+          <p>
+            Yangilash uchun agentni toʻxtating va shu sahifadagi oxirgi
+            versiyani qayta oʻrnating. Mahalliy ulanish va sozlamalar saqlanadi.
+            Avtomatik yangilanish yoki fonda ishga tushish hozir yoqilmagan.
+          </p>
+          <p className="muted">
+            Paket mavjudligi Windows/macOSda amaliy sinov yoki OS imzosi
+            borligini anglatmaydi. Imzo va tekshiruv holatini nashr
+            tafsilotlaridan koʻring. Qurilma trafik hisoblagichlari
+            Windows/macOSda mavjud; Safari tarixi macOS ruxsatlariga bogʻliq.
+            Login metamaʼlumotlari Chrome/Edge/Brave uchun; Firefox/Safari login
+            inventari qoʻllanmaydi.
+          </p>
+        </details>
       </section>
       <details className="panel">
         <summary>Terminal uchun imzolangan agent binarlari</summary>
