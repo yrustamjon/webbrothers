@@ -57,7 +57,7 @@ def main():
         }.get(sys.platform, '.config/google-chrome')
         profile = root/chrome_root/'Default'
         profile.mkdir(parents=True)
-        (profile.parent/'Local State').write_text(json.dumps({'profile':{'info_cache':{'Default':{'name':'QA profili'}}}}))
+        (profile.parent/'Local State').write_text(json.dumps({'profile':{'info_cache':{'Default':{'name':'QA profili','user_name':'fixture-profile@example.test'}}}}))
         with sqlite3.connect(profile/'History') as db:
             db.executescript('CREATE TABLE urls(id INTEGER PRIMARY KEY,url TEXT,title TEXT,visit_count INTEGER,last_visit_time INTEGER); CREATE TABLE visits(id INTEGER PRIMARY KEY,url INTEGER,visit_time INTEGER);')
             chrome_time = int((time.time()+11644473600)*1000000)
@@ -119,6 +119,7 @@ def main():
             chrome = next(b for b in items if 'chrome' in (b['id']+' '+b['name']).lower())
             profiles = chrome.get('profiles') or call(owner,path,{'type':'PROFILE_LIST_REQUEST','params':{'browser_id':chrome['id']}},csrf).get('payload',{}).get('items',[])
             assert profiles, 'Sintetik profil aniqlanmadi'
+            assert profiles[0]['name']=='QA profili · fixture-profile@example.test', 'Profil nomi/emaili qaytmadi'
             history = call(owner,path,{'type':'HISTORY_QUERY','params':{'browser_id':chrome['id'],'profile_id':profiles[0]['id'],'search':'synthetic.example.test','page':1,'page_size':10}},csrf)
             history_payload = history.get('payload',history)
             assert any(x['url']=='https://synthetic.example.test/qa' for x in history_payload['items']), 'Haqiqiy fixture tarixi qaytmadi'

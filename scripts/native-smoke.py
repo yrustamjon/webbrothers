@@ -107,7 +107,7 @@ def main():
                             '--ca-file', str(directory/'ca.pem'), '--agent', str(args.agent.resolve())], env=env, check=True)
             with sqlite3.connect(directory/'metadata.db') as database:
                 dump = '\n'.join(database.iterdump())
-            for sentinel in ('synthetic.example.test', 'safari-synthetic.example.test', 'fixture-user', 'never-return-this-secret'):
+            for sentinel in ('synthetic.example.test', 'safari-synthetic.example.test', 'fixture-user', 'fixture-profile@example.test', 'never-return-this-secret'):
                 if sentinel in dump:
                     raise AssertionError('Agent mazmuni markaziy bazada topildi')
             print('PASS: tarix va login metamaʼlumotlari markaziy bazaga yozilmadi')

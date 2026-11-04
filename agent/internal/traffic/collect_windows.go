@@ -6,6 +6,7 @@ package traffic
 #cgo CFLAGS: -D_WIN32_WINNT=0x0600
 #cgo LDFLAGS: -liphlpapi
 #include <winsock2.h>
+#include <ws2ipdef.h>
 #include <windows.h>
 #include <iphlpapi.h>
 #include <netioapi.h>

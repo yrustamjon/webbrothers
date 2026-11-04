@@ -80,6 +80,10 @@ func Discover(home, platform string) []Browser {
 			continue
 		}
 		b := Browser{ID: key, Name: names[key], Profiles: []Profile{}}
+		var profileNames map[string]chromiumProfileInfo
+		if key == "chrome" || key == "edge" || key == "brave" {
+			profileNames = chromiumProfileNames(root)
+		}
 		if key == "safari" {
 			if _, err := os.Stat(filepath.Join(root, "History.db")); err == nil {
 				b.Profiles = append(b.Profiles, Profile{id(root), "Asosiy", root})
@@ -103,7 +107,11 @@ func Discover(home, platform string) []Browser {
 			if _, err := os.Stat(filepath.Join(p, db)); err != nil {
 				continue
 			}
-			b.Profiles = append(b.Profiles, Profile{id(p), e.Name(), p})
+			label := e.Name()
+			if metadata, ok := profileNames[e.Name()]; ok {
+				label = profileDisplayName(e.Name(), metadata)
+			}
+			b.Profiles = append(b.Profiles, Profile{id(p), label, p})
 		}
 		out = append(out, b)
 	}
