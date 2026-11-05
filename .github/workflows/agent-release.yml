@@ -46,6 +46,10 @@ jobs:
         with:
           go-version: stable
           cache-dependency-path: agent/go.sum
+      - name: Windows launcher key regression
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: ./tests/windows-launcher.ps1
       - name: Native agent tests
         working-directory: agent
         run: go test -race ./...

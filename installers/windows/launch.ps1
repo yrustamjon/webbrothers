@@ -34,6 +34,18 @@ function Set-AgentServer([string]$AgentHome) {
     Write-Host 'Server manzili saqlandi. Boshqa serverga oʻtsangiz 3 — qayta ulashni tanlang. Mavjud identifikator oʻchirilmaydi.'
 }
 
+function Read-AgentLocalSecret([string]$SecretFile) {
+    # Set-Content appends CRLF. DPAPI expects the hexadecimal blob without whitespace.
+    try {
+        $encryptedSecret = (Get-Content -LiteralPath $SecretFile -Raw).Trim()
+        if ([string]::IsNullOrWhiteSpace($encryptedSecret)) { throw 'Empty local key' }
+        return ConvertTo-SecureString -String $encryptedSecret
+    } catch {
+        Write-Host 'Mahalliy kalit ochilmadi: Windows hisobi va passphrase.dpapi faylini tekshiring. Mavjud identifikator saqlandi.'
+        throw
+    }
+}
+
 function Invoke-AgentSession([string]$AgentHome, [string]$Binary, [string]$Choice) {
     $serverFile = Join-Path $AgentHome 'server.txt'
     if (Test-Path -LiteralPath $serverFile) { $server = (Get-Content -LiteralPath $serverFile -Raw).Trim() }
@@ -56,7 +68,7 @@ function Invoke-AgentSession([string]$AgentHome, [string]$Binary, [string]$Choic
         $secret = [Convert]::ToBase64String($bytes) | ConvertTo-SecureString -AsPlainText -Force
         $secret | ConvertFrom-SecureString | Set-Content -LiteralPath $secretFile -Encoding ASCII
     }
-    $secret = Get-Content -LiteralPath $secretFile -Raw | ConvertTo-SecureString
+    $secret = Read-AgentLocalSecret $secretFile
     $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
     try { $env:BROWSER_AGENT_KEY_PASSPHRASE = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer) }
     finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
