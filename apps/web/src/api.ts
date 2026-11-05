@@ -11,6 +11,7 @@ export async function api<T>(
   path: string,
   body?: unknown,
   method?: string,
+  signal?: AbortSignal,
 ): Promise<T> {
   let headers: Record<string, string> = {};
   const publicAuth = [
@@ -26,6 +27,7 @@ export async function api<T>(
       const csrf = await fetch(`${base}/auth/csrf`, {
         credentials: "include",
         cache: "no-store",
+        signal,
       });
       if (!csrf.ok)
         throw new APIError(
@@ -42,6 +44,7 @@ export async function api<T>(
     headers,
     credentials: "include",
     cache: "no-store",
+    signal,
   });
   const data = await response.json().catch(() => null);
   if (!response.ok) {
@@ -83,19 +86,32 @@ export type History = {
   total?: number;
   page: number;
   page_size: number;
+  next_cursor?: string | null;
+  has_more?: boolean;
 };
 export type Traffic = {
   received_bytes: number;
   sent_bytes: number;
   attribution: string;
   collected_at: string;
+  total_bytes?: number;
+  download_bps?: number | null;
+  upload_bps?: number | null;
+  daily_received_bytes?: number;
+  daily_sent_bytes?: number;
+  daily_observed_since?: string;
+  measurement_interval_ms?: number;
+  sample_state?: "warming_up" | "measured" | "counter_reset";
 };
 export const queryAgent = (
   device: string,
   type: string,
   params: unknown = {},
+  signal?: AbortSignal,
 ) =>
-  api<unknown>(`/devices/${encodeURIComponent(device)}/query`, {
-    type,
-    params,
-  });
+  api<unknown>(
+    `/devices/${encodeURIComponent(device)}/query`,
+    { type, params },
+    undefined,
+    signal,
+  );

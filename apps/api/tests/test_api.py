@@ -485,3 +485,96 @@ def test_scope_narrowing_interrupts_pending(client):
                 == 200
             )
             assert response.result(timeout=5).status_code == 403
+
+
+def test_stream_relay_ack_and_cleanup(client):
+    import json
+    from concurrent.futures import ThreadPoolExecutor
+
+    c = client
+    h = account(c)
+    _, d = pair(c, h)
+    route = f"/api/v1/devices/{d['device_id']}"
+    # Enrollment metadata only; all records below are synthetic.
+    with c.app.state.sessions() as session:
+        from bmp.models import Device
+
+        device = session.get(Device, d["device_id"])
+        device.scopes = json.dumps(["history.read"])
+        session.commit()
+    with c.websocket_connect(
+        "/api/v1/ws/agent", headers={"Authorization": f"Bearer {d['device_token']}"}
+    ) as ws:
+        challenge = ws.receive_json()
+        signature = KEY.sign(
+            (
+                "BMP-AGENT-AUTH-V1\n" + d["device_id"] + "\n" + challenge["nonce"]
+            ).encode()
+        )
+        ws.send_json(
+            dict(
+                version=1,
+                type="AUTH_PROOF",
+                device_id=d["device_id"],
+                nonce=challenge["nonce"],
+                signature=base64.b64encode(signature).decode(),
+            )
+        )
+        ws.send_json(dict(version=1, type="HEARTBEAT", device_id=d["device_id"]))
+        ws.receive_json()
+        with ThreadPoolExecutor() as pool:
+            future = pool.submit(
+                c.post,
+                route + "/stream",
+                headers=h,
+                json=dict(
+                    type="HISTORY_QUERY",
+                    params=dict(browser_id="chrome", profile_id="default"),
+                ),
+            )
+            request = ws.receive_json()
+            assert request["params"]["stream"] is True
+            frame = {k: v for k, v in request.items() if k != "params"}
+            frame.update(
+                type="HISTORY_RESPONSE",
+                sequence=0,
+                final=False,
+                payload=dict(
+                    items=[], page=1, page_size=50, next_cursor=None, has_more=False
+                ),
+            )
+            ws.send_json(frame)
+            ack = ws.receive_json()
+            assert ack["type"] == "STREAM_ACK" and ack["sequence"] == 0
+            frame.update(sequence=1, final=True)
+            ws.send_json(frame)
+            response = future.result(timeout=3)
+            assert response.status_code == 200
+            assert response.headers["cache-control"] == "no-store"
+            assert [
+                json.loads(line)["sequence"] for line in response.text.splitlines()
+            ] == [0, 1]
+            assert ws.receive_json()["type"] == "CANCEL_REQUEST"
+            assert not c.app.state.streams
+            # Narrowing permissions cancels an already-issued request without content.
+            pending = pool.submit(
+                c.post,
+                route + "/stream",
+                headers=h,
+                json=dict(
+                    type="HISTORY_QUERY",
+                    params=dict(browser_id="chrome", profile_id="default"),
+                ),
+            )
+            ws.receive_json()
+            assert (
+                c.post(route + "/scopes", headers=h, json={"scopes": []}).status_code
+                == 200
+            )
+            result = pending.result(timeout=3)
+            assert json.loads(result.text.splitlines()[-1])["error"]["code"] == "DENIED"
+            from starlette.websockets import WebSocketDisconnect
+
+            with pytest.raises(WebSocketDisconnect):
+                ws.receive_json()
+            assert not c.app.state.streams

@@ -89,3 +89,29 @@ func TestReadDoesNotExtendTTLAndReplacementResetsIt(t *testing.T) {
 		t.Fatal("replacement did not expire at its own TTL")
 	}
 }
+
+func TestClearAndExpiredRemovalZeroStoredCopies(t *testing.T) {
+	now := time.Unix(100, 0)
+	c := New(4096, time.Second)
+	c.now = func() time.Time { return now }
+	c.Set("a", []byte("transient data"))
+	stored := c.items["a"].Value.(item).data
+	c.Clear()
+	for _, value := range stored {
+		if value != 0 {
+			t.Fatal("clear did not wipe stored bytes")
+		}
+	}
+	c.Set("b", []byte("transient data"))
+	stored = c.items["b"].Value.(item).data
+	now = now.Add(2 * time.Second)
+	c.PurgeExpired()
+	for _, value := range stored {
+		if value != 0 {
+			t.Fatal("expiry did not wipe stored bytes")
+		}
+	}
+	if bytes, entries := c.Usage(); bytes != 0 || entries != 0 {
+		t.Fatal("expired storage retained")
+	}
+}

@@ -35,3 +35,5 @@ powershell -File scripts/package-agent-windows.ps1 -Version 0.1.0 -BinaryPath ag
 ```
 
 `BMP_MAC_SIGN_IDENTITY` berilsa macOS app va ichki binar codesign bilan imzolanadi. Developer ID, notarization/stapling, Windows Authenticode sertifikati va amaliy oʻrnatish testlari alohida talab qilinadi. Imzosiz paketlar faqat sinov artefakti; oddiy foydalanuvchi uchun ishonchli production reliz deb tarqatmang. Launcherlar Windows PowerShell 5.1+/Terminal bilan ishlash uchun; tashkilotning bajarish siyosati ishga tushirishni cheklashi mumkin, uni tizim miqyosida oʻzgartirmang.
+
+Agent ishlashi tugasa yoki ulanish xatosi boʻlsa menyuga qaytadi. `0` oynadan chiqadi, `4` server manzilini oʻzgartiradi. `5` faqat `traffic.http` ga rozilik berilgan qurilmada ixtiyoriy HTTP kengaytmasining mahalliy ulash kalitini koʻrsatadi. Tarmoq ulanishlari va HTTP metadata uchun alohida rozilik bor; avvalgi ruxsatlar oʻzidan-oʻzi kengaymaydi. [Kengaytmani ulash](../extensions/http-metadata/README.md).

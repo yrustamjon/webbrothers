@@ -19,7 +19,10 @@ type LoginItem struct {
 }
 
 type InventoryPage struct {
-	Items []LoginItem `json:"items"`
+	Items      []LoginItem `json:"items"`
+	PageSize   int         `json:"page_size,omitempty"`
+	NextCursor *string     `json:"next_cursor,omitempty"`
+	HasMore    bool        `json:"has_more"`
 }
 
 // Inventory reads saved-login metadata only. It never selects encrypted password

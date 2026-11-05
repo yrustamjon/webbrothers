@@ -27,6 +27,7 @@ func (c *Cache) remove(e *list.Element) {
 	i := e.Value.(item)
 	delete(c.items, i.key)
 	c.used -= len(i.key) + len(i.data) + 128
+	clear(i.data)
 	c.order.Remove(e)
 }
 func (c *Cache) Get(key string) ([]byte, bool) {
@@ -63,7 +64,31 @@ func (c *Cache) Set(key string, data []byte) {
 func (c *Cache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	for e := c.order.Back(); e != nil; {
+		previous := e.Prev()
+		c.remove(e)
+		e = previous
+	}
 	c.items = map[string]*list.Element{}
 	c.order.Init()
 	c.used = 0
+}
+
+// PurgeExpired removes expired values even when those keys are not requested again.
+func (c *Cache) PurgeExpired() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	now := c.now()
+	for e := c.order.Back(); e != nil; {
+		previous := e.Prev()
+		if !now.Before(e.Value.(item).expires) {
+			c.remove(e)
+		}
+		e = previous
+	}
+}
+func (c *Cache) Usage() (bytes, entries int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.used, len(c.items)
 }

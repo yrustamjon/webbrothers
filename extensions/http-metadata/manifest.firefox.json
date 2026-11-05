@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "WebBrothers HTTP metadata",
+  "version": "0.1.0",
+  "description": "Opt-in HTTP origin, method, status and duration; no headers, bodies or credentials.",
+  "permissions": [
+    "webRequest",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:18444/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "options_page": "options.html",
+  "action": {
+    "default_title": "WebBrothers metadata settings"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "http-metadata@webbrothers.local",
+      "strict_min_version": "121.0"
+    }
+  }
+}

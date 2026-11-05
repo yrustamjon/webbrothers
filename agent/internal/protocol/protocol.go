@@ -7,9 +7,10 @@ import (
 )
 
 const MaxPayload = 1 << 20
+const MaxStreamFrame = 64 << 10
 
-var Scopes = map[string]string{"BROWSER_LIST_REQUEST": "browser.discovery", "PROFILE_LIST_REQUEST": "profile.discovery", "HISTORY_QUERY": "history.read", "LOGIN_INVENTORY_QUERY": "login.inventory", "TRAFFIC_STATS_REQUEST": "traffic.aggregate"}
-var Responses = map[string]string{"BROWSER_LIST_REQUEST": "BROWSER_LIST_RESPONSE", "PROFILE_LIST_REQUEST": "PROFILE_LIST_RESPONSE", "HISTORY_QUERY": "HISTORY_RESPONSE", "LOGIN_INVENTORY_QUERY": "LOGIN_INVENTORY_RESPONSE", "TRAFFIC_STATS_REQUEST": "TRAFFIC_STATS_RESPONSE"}
+var Scopes = map[string]string{"BROWSER_LIST_REQUEST": "browser.discovery", "PROFILE_LIST_REQUEST": "profile.discovery", "HISTORY_QUERY": "history.read", "LOGIN_INVENTORY_QUERY": "login.inventory", "TRAFFIC_STATS_REQUEST": "traffic.aggregate", "CONNECTIONS_QUERY": "traffic.connections", "HTTP_EVENTS_QUERY": "traffic.http"}
+var Responses = map[string]string{"BROWSER_LIST_REQUEST": "BROWSER_LIST_RESPONSE", "PROFILE_LIST_REQUEST": "PROFILE_LIST_RESPONSE", "HISTORY_QUERY": "HISTORY_RESPONSE", "LOGIN_INVENTORY_QUERY": "LOGIN_INVENTORY_RESPONSE", "TRAFFIC_STATS_REQUEST": "TRAFFIC_STATS_RESPONSE", "CONNECTIONS_QUERY": "CONNECTIONS_RESPONSE", "HTTP_EVENTS_QUERY": "HTTP_EVENTS_RESPONSE"}
 
 type Error struct {
 	Code    string `json:"code"`
@@ -26,6 +27,8 @@ type Message struct {
 	Params    json.RawMessage `json:"params,omitempty"`
 	Payload   any             `json:"payload,omitempty"`
 	Error     *Error          `json:"error,omitempty"`
+	Sequence  *int            `json:"sequence,omitempty"`
+	Final     *bool           `json:"final,omitempty"`
 }
 type Validator struct {
 	DeviceID string

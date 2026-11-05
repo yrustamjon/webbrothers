@@ -3,17 +3,14 @@ package browser
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 )
 
 type Profile struct {
@@ -34,9 +31,11 @@ type Visit struct {
 	VisitCount int64  `json:"visit_count"`
 }
 type Page struct {
-	Items    []Visit `json:"items"`
-	Page     int     `json:"page"`
-	PageSize int     `json:"page_size"`
+	Items      []Visit `json:"items"`
+	Page       int     `json:"page"`
+	PageSize   int     `json:"page_size"`
+	NextCursor *string `json:"next_cursor"`
+	HasMore    bool    `json:"has_more"`
 }
 type Query struct {
 	BrowserID string `json:"browser_id"`
@@ -47,6 +46,8 @@ type Query struct {
 	Start     string `json:"start"`
 	End       string `json:"end"`
 	Sort      string `json:"sort"`
+	Cursor    string `json:"cursor"`
+	Stream    bool   `json:"stream"`
 }
 
 func id(path string) string { h := sha256.Sum256([]byte(path)); return hex.EncodeToString(h[:12]) }
@@ -94,6 +95,9 @@ func Discover(home, platform string, includeProfiles ...bool) []Browser {
 			}
 		}
 		for _, e := range entries {
+			if len(b.Profiles) >= 1000 {
+				break
+			}
 			if !e.IsDir() || e.Type()&os.ModeSymlink != 0 {
 				continue
 			}
@@ -134,95 +138,10 @@ func Current(includeProfiles ...bool) ([]Browser, error) {
 	return Discover(h, runtime.GOOS, includeProfiles...), nil
 }
 func History(browsers []Browser, q Query) (Page, error) {
-	result := Page{Items: []Visit{}, Page: q.Page, PageSize: q.PageSize}
 	if q.Page < 1 || q.Page > 100000 || q.PageSize < 1 || q.PageSize > 200 {
-		return result, errors.New("Sahifa chegarasi notoʻgʻri")
+		return Page{Items: []Visit{}, Page: q.Page, PageSize: q.PageSize}, errors.New("Sahifa chegarasi notoʻgʻri")
 	}
-	var path string
-	for _, b := range browsers {
-		if b.ID == q.BrowserID {
-			for _, p := range b.Profiles {
-				if p.ID == q.ProfileID {
-					path = p.Path
-				}
-			}
-		}
-	}
-	if path == "" {
-		return result, errors.New("Profil topilmadi yoki ruxsat yoʻq")
-	}
-	if q.BrowserID == "safari" {
-		return safariHistory(path, q)
-	}
-	file := "History"
-	query := `SELECT substr(url,1,8192),substr(title,1,2048),last_visit_time,visit_count FROM urls WHERE (url LIKE ? ESCAPE '\' OR title LIKE ? ESCAPE '\')`
-	epoch := int64(11644473600000000)
-	if q.BrowserID == "firefox" {
-		file = "places.sqlite"
-		epoch = 0
-		query = `SELECT substr(url,1,8192),substr(COALESCE(title,''),1,2048),last_visit_date,visit_count FROM moz_places WHERE (url LIKE ? ESCAPE '\' OR title LIKE ? ESCAPE '\')`
-	}
-	if !within(path, filepath.Join(path, file)) {
-		return result, errors.New("Profil yoʻli ruxsat doirasidan tashqarida")
-	}
-	uri, err := historyURI(filepath.Join(path, file))
-	if err != nil {
-		return result, errors.New("Tarix bazasi yoʻli yaroqsiz")
-	}
-	db, err := sql.Open("sqlite3", uri)
-	if err != nil {
-		return result, errors.New("Tarix bazasi ochilmadi")
-	}
-	defer db.Close()
-	db.SetMaxOpenConns(1)
-	args := []any{}
-	search := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q.Search)
-	args = append(args, "%"+search+"%", "%"+search+"%")
-	column := "last_visit_time"
-	if q.BrowserID == "firefox" {
-		column = "last_visit_date"
-	}
-	for _, f := range []struct{ v, op string }{{q.Start, ">="}, {q.End, "<="}} {
-		if f.v != "" {
-			t, e := time.Parse(time.RFC3339, f.v)
-			if e != nil {
-				return result, errors.New("Sana formati notoʻgʻri")
-			}
-			query += " AND " + column + f.op + "?"
-			args = append(args, t.UnixMicro()+epoch)
-		}
-	}
-	order := "DESC"
-	if q.Sort == "asc" {
-		order = "ASC"
-	} else if q.Sort != "" && q.Sort != "desc" {
-		return result, errors.New("Saralash notoʻgʻri")
-	}
-	query += " ORDER BY " + column + " " + order + " LIMIT ? OFFSET ?"
-	args = append(args, q.PageSize, (q.Page-1)*q.PageSize)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	rows, e := db.QueryContext(ctx, query, args...)
-	if e != nil {
-		return result, errors.New("Brauzer bazasi band yoki sxemasi qoʻllanmaydi")
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var v Visit
-		var micro sql.NullInt64
-		if e = rows.Scan(&v.URL, &v.Title, &micro, &v.VisitCount); e != nil {
-			return result, fmt.Errorf("Tarix yozuvi oʻqilmadi")
-		}
-		if micro.Valid {
-			v.VisitedAt = time.UnixMicro(micro.Int64 - epoch).UTC().Format(time.RFC3339)
-		}
-		u, _ := url.Parse(v.URL)
-		if u != nil {
-			v.Domain = u.Hostname()
-		}
-		result.Items = append(result.Items, v)
-	}
-	return result, rows.Err()
+	return HistoryContext(context.Background(), browsers, q)
 }
 
 func historyURI(path string) (string, error) {

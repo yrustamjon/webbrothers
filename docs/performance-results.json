@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "platform": "darwin",
+  "dataset": {
+    "history_records": 100000,
+    "login_metadata_records": 10000,
+    "profiles": 2
+  },
+  "transport": {
+    "minimum_tls": "1.3",
+    "verified_ca": true,
+    "agent": "native WSS"
+  },
+  "measurements": {
+    "initial_devices_ms": 4.216625005938113,
+    "browser_expansion_ms": 5.180749983992428,
+    "browser_list_profile_metadata_count": 2,
+    "profile_list_ms": 3.9873329806141555,
+    "profile_history_first_page": {
+      "elapsed_ms": 14.45379198412411,
+      "first_frame_ms": 12.132791976910084,
+      "http_body_bytes": 11144,
+      "frames": 3,
+      "rows": 50
+    },
+    "history_cursor_page": {
+      "elapsed_ms": 13.851958006853238,
+      "first_frame_ms": 11.617833020864055,
+      "http_body_bytes": 11169,
+      "frames": 3,
+      "rows": 50
+    },
+    "history_search": {
+      "elapsed_ms": 17.042000021319836,
+      "first_frame_ms": 16.985082998871803,
+      "http_body_bytes": 364,
+      "frames": 1,
+      "rows": 1
+    },
+    "login_first_page": {
+      "elapsed_ms": 7.645417004823685,
+      "first_frame_ms": 5.721709021599963,
+      "http_body_bytes": 7080,
+      "frames": 3,
+      "rows": 50
+    },
+    "live_traffic_stream": {
+      "frames": 3,
+      "arrival_ms": [
+        17.691125016426668,
+        1033.3954590023495,
+        2052.659584005596
+      ],
+      "interval_ms": 1000
+    },
+    "concurrent_four": {
+      "wall_ms": 22.768625000026077,
+      "requests": [
+        {
+          "elapsed_ms": 22.13145900168456,
+          "first_frame_ms": 15.911791997496039,
+          "http_body_bytes": 11144,
+          "frames": 3,
+          "rows": 50
+        },
+        {
+          "elapsed_ms": 22.212374984519556,
+          "first_frame_ms": 16.402209002990276,
+          "http_body_bytes": 11144,
+          "frames": 3,
+          "rows": 50
+        },
+        {
+          "elapsed_ms": 21.028209012001753,
+          "first_frame_ms": 14.173333998769522,
+          "http_body_bytes": 11144,
+          "frames": 3,
+          "rows": 50
+        },
+        {
+          "elapsed_ms": 21.41275000758469,
+          "first_frame_ms": 15.689209016272798,
+          "http_body_bytes": 11144,
+          "frames": 3,
+          "rows": 50
+        }
+      ]
+    },
+    "http_cancel": {
+      "partial": {
+        "elapsed_ms": 5.79508300870657,
+        "first_frame_ms": 5.7229170051869005,
+        "http_body_bytes": 4356,
+        "frames": 1,
+        "rows": 20
+      },
+      "following_request": {
+        "elapsed_ms": 7.3113749967888,
+        "first_frame_ms": 5.042375007178634,
+        "http_body_bytes": 11144,
+        "frames": 3,
+        "rows": 50
+      },
+      "server_cleanup_observed": "subsequent query succeeds; queue introspection unavailable"
+    },
+    "agent_before": {
+      "available": true,
+      "rss_bytes": 18251776,
+      "cpu_percent_snapshot": 4.6,
+      "cpu_seconds": 0.09
+    },
+    "agent_after_queries": {
+      "available": true,
+      "rss_bytes": 25657344,
+      "cpu_percent_snapshot": 3.1,
+      "cpu_seconds": 0.14
+    },
+    "restart_identity_reconnect": {
+      "elapsed_ms": 129.84795900410973,
+      "following_request": {
+        "elapsed_ms": 15.04933400428854,
+        "first_frame_ms": 12.505209015216678,
+        "http_body_bytes": 11144,
+        "frames": 3,
+        "rows": 50
+      }
+    }
+  },
+  "limitations": [
+    "RSS and CPU are process snapshots; Windows sampler may be unavailable.",
+    "Browser expansion includes metadata discovery; frontend rendering/virtualization is not measured.",
+    "Cancellation confirms HTTP closes and later queries succeed; relay private queues are not remotely inspected.",
+    "Measured WebSocket application bytes exclude protocol framing and TLS overhead."
+  ],
+  "websocket_application_bytes": {
+    "sent_bytes": 13380,
+    "received_bytes": 119888,
+    "sent_frames": 59,
+    "received_frames": 47,
+    "coverage": "Entire isolated smoke plus benchmark, including auth, control and heartbeats; excludes WebSocket framing/TLS",
+    "elapsed_server_seconds": 14.13230145801208
+  }
+}

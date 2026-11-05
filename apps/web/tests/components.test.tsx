@@ -285,6 +285,11 @@ describe("haqiqiy komponent oʻzaro taʼsirlari", () => {
       name: "Brauzer, profil yoki email",
     });
     await user.type(search, "TEAM@example.test");
+    expect(screen.getByRole("button", { name: /Chrome/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    await user.click(screen.getByRole("button", { name: /Chrome/ }));
     expect(
       screen.getByRole("button", { name: "Jamoa · team@example.test" }),
     ).toBeInTheDocument();

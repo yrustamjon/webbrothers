@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -28,6 +29,11 @@ import (
 )
 
 func main() {
+	// Soft Go heap budget; SQLite/native allocations are measured separately.
+	debug.SetMemoryLimit(64 << 20)
+	if runtime.GOMAXPROCS(0) > 2 {
+		runtime.GOMAXPROCS(2)
+	}
 	if e := run(); e != nil {
 		fmt.Fprintln(os.Stderr, "Agent xatosi:", e)
 		os.Exit(1)
@@ -68,6 +74,18 @@ func run() error {
 	}
 	if *action == "re-pair" {
 		return rePair(ctx, *server, *state, pass, *scopes)
+	}
+	if *action == "bridge-info" {
+		i, err := identity.Load(*state, pass)
+		if err != nil {
+			return err
+		}
+		for _, scope := range i.Scopes {
+			if scope == "traffic.http" {
+				return json.NewEncoder(os.Stdout).Encode(map[string]string{"url": "http://" + traffic.BridgeAddress, "key": traffic.BridgeKey(i.PrivateKey)})
+			}
+		}
+		return errors.New("Avval traffic.http mahalliy roziligini bering")
 	}
 	if *action != "run" {
 		return errors.New("Amal qoʻllanmaydi")
@@ -114,7 +132,7 @@ func post(ctx context.Context, server, path string, in, out any) error {
 	}
 	r, e := client.Do(req)
 	if e != nil {
-		return errors.New("HTTPS serveriga ulanib boʻlmadi")
+		return transport.ConnectionError(e)
 	}
 	defer r.Body.Close()
 	if r.StatusCode < 200 || r.StatusCode >= 300 {
@@ -203,98 +221,9 @@ func pair(ctx context.Context, server, path, pass, scopes string) error {
 }
 func decode(raw json.RawMessage, out any) error { return protocol.Decode(raw, out) }
 
-func handle(m protocol.Message, c *cache.Cache, includeProfiles ...bool) (any, error) {
-	if m.Type == "TRAFFIC_STATS_REQUEST" {
-		if e := decode(m.Params, &struct{}{}); e != nil {
-			return nil, errors.New("Parametrlar notoʻgʻri")
-		}
-		return traffic.Collect()
-	}
-	b, e := browser.Current(includeProfiles...)
-	if e != nil {
-		return nil, e
-	}
-	switch m.Type {
-	case "BROWSER_LIST_REQUEST":
-		if e = decode(m.Params, &struct{}{}); e != nil {
-			return nil, errors.New("Parametrlar notoʻgʻri")
-		}
-		items := make([]map[string]any, 0, len(b))
-		for _, br := range b {
-			capabilities := []string{"history.read"}
-			if br.ID == "chrome" || br.ID == "edge" || br.ID == "brave" {
-				capabilities = append(capabilities, "login.inventory")
-			}
-			if runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
-				capabilities = append(capabilities, "traffic.aggregate")
-			}
-			items = append(items, map[string]any{"id": br.ID, "name": br.Name, "profiles": br.Profiles, "capabilities": capabilities})
-		}
-		return map[string]any{"items": items}, nil
-	case "PROFILE_LIST_REQUEST":
-		var p struct {
-			BrowserID string `json:"browser_id"`
-		}
-		if e = decode(m.Params, &p); e != nil {
-			return nil, errors.New("Parametrlar notoʻgʻri")
-		}
-		for _, v := range b {
-			if v.ID == p.BrowserID {
-				return map[string]any{"items": v.Profiles}, nil
-			}
-		}
-		return nil, errors.New("Brauzer topilmadi")
-	case "HISTORY_QUERY":
-		var q browser.Query
-		if e = decode(m.Params, &q); e != nil {
-			return nil, errors.New("Tarix parametrlari notoʻgʻri")
-		}
-		if q.Page == 0 {
-			q.Page = 1
-		}
-		if q.PageSize == 0 {
-			q.PageSize = 50
-		}
-		found := false
-		for _, br := range b {
-			if br.ID == q.BrowserID {
-				for _, p := range br.Profiles {
-					if p.ID == q.ProfileID {
-						found = true
-					}
-				}
-			}
-		}
-		if !found {
-			return nil, errors.New("Profil topilmadi yoki ruxsat yoʻq")
-		}
-		key := string(m.Params)
-		if data, ok := c.Get(key); ok {
-			return json.RawMessage(data), nil
-		}
-		p, e := browser.History(b, q)
-		if e != nil {
-			return nil, e
-		}
-		data, e := json.Marshal(p)
-		if e != nil {
-			return nil, e
-		}
-		c.Set(key, data)
-		return p, nil
-	case "LOGIN_INVENTORY_QUERY":
-		var q struct {
-			BrowserID string `json:"browser_id"`
-			ProfileID string `json:"profile_id"`
-		}
-		if e = decode(m.Params, &q); e != nil {
-			return nil, errors.New("Login inventari parametrlari notoʻgʻri")
-		}
-		return browser.Inventory(b, q.BrowserID, q.ProfileID)
-	}
-	return nil, errors.New("Soʻrov turi qoʻllanmaydi")
-}
 func serve(ctx context.Context, server string, i identity.Identity) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	conn, e := transport.Dial(ctx, server, i.Token)
 	if e != nil {
 		return e
@@ -325,8 +254,22 @@ func serve(ctx context.Context, server string, i identity.Identity) error {
 		return e
 	}
 	v := protocol.New(i.DeviceID, i.Scopes)
-	c := cache.New(4<<20, 15*time.Second)
-	defer c.Clear()
+	c := cache.New(4<<20, 5*time.Second)
+	engine := newQueryEngine(c)
+	defer engine.clear()
+	var bridgeDone chan struct{}
+	if v.Allowed["traffic.http"] {
+		bridgeDone = make(chan struct{})
+		go func() {
+			defer close(bridgeDone)
+			if err := traffic.ServeBridge(ctx, traffic.BridgeKey(i.PrivateKey), engine.events); err != nil {
+				fmt.Fprintln(os.Stderr, "HTTP metadata kengaytmasi ulanmagan: mahalliy portni tekshiring.")
+			}
+		}()
+		defer func() { cancel(); <-bridgeDone }()
+	}
+	group := newTaskGroup(ctx, 4)
+	defer group.close()
 	var write sync.Mutex
 	send := func(m any) error {
 		write.Lock()
@@ -339,6 +282,8 @@ func serve(ctx context.Context, server string, i identity.Identity) error {
 	go func() {
 		t := time.NewTicker(20 * time.Second)
 		defer t.Stop()
+		purge := time.NewTicker(time.Second)
+		defer purge.Stop()
 		for {
 			select {
 			case <-ctx.Done():
@@ -346,6 +291,10 @@ func serve(ctx context.Context, server string, i identity.Identity) error {
 				return
 			case <-done:
 				return
+			case <-purge.C:
+				c.PurgeExpired()
+				traffic.PurgeConnections()
+				engine.events.Purge()
 			case <-t.C:
 				if send(map[string]any{"version": 1, "device_id": i.DeviceID, "type": "HEARTBEAT", "timestamp": time.Now().UTC()}) != nil {
 					conn.Close()
@@ -367,36 +316,77 @@ func serve(ctx context.Context, server string, i identity.Identity) error {
 		if m.Type == "HEARTBEAT" {
 			continue
 		}
+		if m.Type == "CANCEL_REQUEST" || m.Type == "STREAM_ACK" {
+			if err := group.control(m); err != nil {
+				return err
+			}
+			continue
+		}
 		if e = v.Validate(m, time.Now()); e != nil {
 			r := m
 			r.Params = nil
 			r.Type = "AGENT_ERROR"
 			r.Error = &protocol.Error{Code: "DENIED", Message: e.Error()}
+			if wantsStream(m) {
+				seq := 0
+				final := true
+				r.Sequence = &seq
+				r.Final = &final
+			}
 			if e = send(r); e != nil {
 				return e
 			}
 			continue
 		}
-		// A browser-only grant must not reveal profile names or account emails.
 		includeProfiles := m.Type != "BROWSER_LIST_REQUEST" || v.Allowed["profile.discovery"]
-		payload, err := handle(m, c, includeProfiles)
-		r := m
-		r.Params = nil
-		r.Type = protocol.Responses[m.Type]
-		r.Payload = payload
-		if err != nil {
-			r.Type = "AGENT_ERROR"
-			r.Payload = nil
-			r.Error = &protocol.Error{Code: "UNAVAILABLE", Message: err.Error()}
-		}
-		encoded, err := json.Marshal(r)
-		if err != nil || len(encoded) > protocol.MaxPayload {
-			r.Payload = nil
-			r.Type = "AGENT_ERROR"
-			r.Error = &protocol.Error{Code: "TOO_LARGE", Message: "Javob juda katta; sahifa hajmini kamaytiring"}
-		}
-		if e = send(r); e != nil {
-			return e
+		request := m
+		if err := group.start(request, func(task *streamTask) {
+			var err error
+			if wantsStream(request) {
+				err = engine.stream(task, request, includeProfiles, send)
+			} else {
+				var payload any
+				payload, err = engine.handle(task.ctx, request, includeProfiles)
+				if err == nil && task.ctx.Err() == nil {
+					response := request
+					response.Params = nil
+					response.Type = protocol.Responses[request.Type]
+					response.Payload = payload
+					encoded, encodeErr := json.Marshal(response)
+					if encodeErr != nil || len(encoded) > protocol.MaxPayload {
+						err = errors.New("Javob juda katta; sahifa hajmini kamaytiring")
+					} else {
+						err = send(response)
+					}
+				}
+			}
+			if err != nil && task.ctx.Err() == nil {
+				response := request
+				response.Params = nil
+				response.Type = "AGENT_ERROR"
+				response.Error = &protocol.Error{Code: "UNAVAILABLE", Message: err.Error()}
+				if wantsStream(request) {
+					seq := task.nextSequence()
+					final := true
+					response.Sequence = &seq
+					response.Final = &final
+				}
+				_ = send(response)
+			}
+		}); err != nil {
+			response := request
+			response.Params = nil
+			response.Type = "AGENT_ERROR"
+			response.Error = &protocol.Error{Code: "BUSY", Message: err.Error()}
+			if wantsStream(request) {
+				seq := 0
+				final := true
+				response.Sequence = &seq
+				response.Final = &final
+			}
+			if err := send(response); err != nil {
+				return err
+			}
 		}
 	}
 }

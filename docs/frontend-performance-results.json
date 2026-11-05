@@ -1,0 +1,122 @@
+{
+  "scope": "frontend_only_synthetic_loopback_mock_not_full_stack_or_agent",
+  "browser": "Chrome/156.0.8078.80",
+  "platform": "macOS-15.3-arm64-i386-64bit-Mach-O",
+  "runs": 3,
+  "source_records": {
+    "history": 100000,
+    "login_metadata": 10000,
+    "profiles": 3
+  },
+  "stream_fixture": {
+    "chunks": 5,
+    "interval_ms": 25
+  },
+  "measurements_ms": {
+    "initial_dashboard_ms": {
+      "p50": 5189.2,
+      "p95": 5447.7
+    },
+    "browser_list_ms": {
+      "p50": 1926.9,
+      "p95": 3125.8
+    },
+    "browser_expansion_ms": {
+      "p50": 884.1,
+      "p95": 1017.6
+    },
+    "profile_first_chunk_ms": {
+      "p50": 5171,
+      "p95": 6787.9
+    },
+    "search_ms_including_250ms_debounce": {
+      "p50": 2771.3,
+      "p95": 3488.7
+    },
+    "login_first_chunk_ms": {
+      "p50": 1884.3,
+      "p95": 2453.8
+    }
+  },
+  "raw_runs": [
+    {
+      "initial_dashboard_ms": 5447.699999988079,
+      "browser_list_ms": 3125.800000011921,
+      "browser_expansion_ms": 1017.5999999940395,
+      "profile_first_chunk_ms": 6787.9000000059605,
+      "history_dom_rows": 10,
+      "history_page_rows": 50,
+      "search_ms_including_250ms_debounce": 1969,
+      "login_first_chunk_ms": 1884.2999999821186,
+      "login_dom_rows": 10,
+      "concurrent_abort": {
+        "elapsed_ms": 81.19999998807907,
+        "outcomes": [
+          "AbortError",
+          "AbortError",
+          "AbortError"
+        ]
+      }
+    },
+    {
+      "initial_dashboard_ms": 4173.200000017881,
+      "browser_list_ms": 1926.9000000059605,
+      "browser_expansion_ms": 884.0999999940395,
+      "profile_first_chunk_ms": 4131.9000000059605,
+      "history_dom_rows": 10,
+      "history_page_rows": 50,
+      "search_ms_including_250ms_debounce": 2771.300000011921,
+      "login_first_chunk_ms": 2453.7999999821186,
+      "login_dom_rows": 10,
+      "concurrent_abort": {
+        "elapsed_ms": 69.5,
+        "outcomes": [
+          "AbortError",
+          "AbortError",
+          "AbortError"
+        ]
+      }
+    },
+    {
+      "initial_dashboard_ms": 5189.199999988079,
+      "browser_list_ms": 1744.2000000178814,
+      "browser_expansion_ms": 690.1999999880791,
+      "profile_first_chunk_ms": 5171,
+      "history_dom_rows": 10,
+      "history_page_rows": 50,
+      "search_ms_including_250ms_debounce": 3488.699999988079,
+      "login_first_chunk_ms": 1797.199999988079,
+      "login_dom_rows": 10,
+      "concurrent_abort": {
+        "elapsed_ms": 70.90000000596046,
+        "outcomes": [
+          "AbortError",
+          "AbortError",
+          "AbortError"
+        ]
+      }
+    }
+  ],
+  "fixture_totals": {
+    "requests": 21,
+    "browser_requests": 3,
+    "history_requests": 15,
+    "login_requests": 3,
+    "rows_sent": 1350,
+    "stream_frames": 80,
+    "payload_bytes": 180891,
+    "disconnected": 9,
+    "active": 0,
+    "max_concurrent": 3
+  },
+  "limitations": [
+    "HTTP fixture only; TLS, Go agent, SQL query performance, real OS permissions and real browser data are excluded.",
+    "Dedicated Chrome x64 under Rosetta on ARM macOS; Chrome reported CVDisplayLink errors. Results describe this environment only.",
+    "Renderer MutationObserver readiness timestamps exclude CDP polling roundtrip overhead. Fresh isolated browser context per suite; production cache may be warm on later runs.",
+    "Synthetic source cardinality is paginated at fixture; dashboard does not receive whole source. VirtualList100k direct DOM bound is also covered by unit test.",
+    "No real user browser profile, password, history or credential storage is accessed."
+  ],
+  "command": "python scripts/frontend-performance.py --dist apps/web/dist --output docs/frontend-performance-results.json --cdp http://127.0.0.1:19223 --runs 3",
+  "statistical_note": "p95 is nearest-rank maximum for only 3 runs; this small sample does not establish a production latency percentile.",
+  "measurement_method": "MutationObserver captures first matching DOM commit inside renderer; excludes subsequent CDP polling roundtrip. Not a paint or user-perceived interaction metric."
+}

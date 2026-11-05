@@ -1,0 +1,17 @@
+Synthetic source-query benchmark: Apple M1, darwin/arm64, 2026-11-05.
+Command: go test ./internal/browser -run '^$' -bench BenchmarkQueryEngine -benchtime=250ms -count=1
+Dataset generation excluded: 100,000 history, 10,000 login metadata records. Test fixture timestamp index only; application does not index or mutate original sources. Contains search may scan source rows. Allocation figures are per-operation allocations, not process RSS or peak RAM. Native browser/OS permission behavior not measured by this benchmark.
+
+goos: darwin
+goarch: arm64
+pkg: webbrothers/agent/internal/browser
+cpu: Apple M1
+BenchmarkQueryEngine/history_first_50-8                          956    320723 ns/op       8963 response_bytes     50.00 rows/op    73197 B/op    1023 allocs/op
+BenchmarkQueryEngine/history_cursor_middle_50-8                  963    302414 ns/op       8948 response_bytes     50.00 rows/op    75740 B/op    1049 allocs/op
+BenchmarkQueryEngine/history_search_50-8                          18  16030794 ns/op       9313 response_bytes     50.00 rows/op    73670 B/op    1023 allocs/op
+BenchmarkQueryEngine/history_offset_middle_50_legacy-8            57   5263067 ns/op       8966 response_bytes     50.00 rows/op    73529 B/op    1026 allocs/op
+BenchmarkQueryEngine/inventory_first_50-8                         955    327131 ns/op       4635 response_bytes     50.00 rows/op    73252 B/op     924 allocs/op
+BenchmarkQueryEngine/inventory_cursor_middle_50-8                 898    287212 ns/op       4635 response_bytes     50.00 rows/op    75610 B/op     949 allocs/op
+BenchmarkQueryEngine/inventory_search_50-8                        144   2378864 ns/op       4633 response_bytes     50.00 rows/op    72900 B/op     874 allocs/op
+PASS
+ok webbrothers/agent/internal/browser 2.714s

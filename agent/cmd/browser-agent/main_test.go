@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -13,34 +15,45 @@ import (
 )
 
 func TestHandlerDoesNotReturnCachedRemovedProfile(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux profil katalogi sinovi")
-	}
 	home := t.TempDir()
-	root := filepath.Join(home, ".config/google-chrome/Default")
+	relative := ".config/google-chrome/Default"
+	if runtime.GOOS == "darwin" {
+		relative = "Library/Application Support/Google/Chrome/Default"
+	}
+	if runtime.GOOS == "windows" {
+		relative = "AppData/Local/Google/Chrome/User Data/Default"
+	}
+	root := filepath.Join(home, relative)
 	if e := os.MkdirAll(root, 0700); e != nil {
 		t.Fatal(e)
 	}
 	file := filepath.Join(root, "History")
-	if e := os.WriteFile(file, []byte{}, 0600); e != nil {
-		t.Fatal(e)
+	db, err := sql.Open("sqlite3", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE urls(id INTEGER PRIMARY KEY,url TEXT,title TEXT,visit_count INTEGER,last_visit_time INTEGER); INSERT INTO urls VALUES(1,'https://synthetic.example.test','Cached',1,13300000000000000)`)
+	db.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 	t.Setenv("BROWSER_AGENT_PROFILE_HOME", home)
-	browsers := browser.Discover(home, "linux")
+	browsers := browser.Discover(home, runtime.GOOS)
 	if len(browsers) == 0 || len(browsers[0].Profiles) == 0 {
-		t.Skip("Linux standart katalogi sinovi")
+		t.Fatal("Sintetik profil aniqlanmadi")
 	}
 	params, _ := json.Marshal(browser.Query{BrowserID: "chrome", ProfileID: browsers[0].Profiles[0].ID, Page: 1, PageSize: 50})
 	c := cache.New(4096, time.Minute)
-	c.Set(string(params), []byte(`{"items":[{"title":"Cached"}]}`))
+	engine := newQueryEngine(c)
+	defer engine.clear()
 	m := protocol.Message{Type: "HISTORY_QUERY", Params: params}
-	if _, e := handle(m, c); e != nil {
+	if _, e := engine.handle(context.Background(), m); e != nil {
 		t.Fatal(e)
 	}
 	if e := os.Remove(file); e != nil {
 		t.Fatal(e)
 	}
-	if _, e := handle(m, c); e == nil {
+	if _, e := engine.handle(context.Background(), m); e == nil {
 		t.Fatal("removed profile returned cached sensitive data")
 	}
 }

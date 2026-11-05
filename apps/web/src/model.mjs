@@ -4,6 +4,8 @@ export const scopes = [
   ["history.read", "Koʻrish tarixini oʻqish"],
   ["login.inventory", "Loginlar roʻyxati (parollarsiz)"],
   ["traffic.aggregate", "Qurilma trafik statistikasi"],
+  ["traffic.connections", "Tarmoq ulanishlari metamaʼlumotlari"],
+  ["traffic.http", "Kengaytmadan HTTP metamaʼlumotlari"],
 ];
 export function toggleBrowser(current, next) {
   return current === next ? null : next;

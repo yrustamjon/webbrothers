@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import ipaddress
+import math
 import re
 import threading
 from collections import OrderedDict
@@ -17,6 +19,8 @@ REQUESTS = {
     "HISTORY_QUERY": ("history.read", "HISTORY_RESPONSE"),
     "LOGIN_INVENTORY_QUERY": ("login.inventory", "LOGIN_INVENTORY_RESPONSE"),
     "TRAFFIC_STATS_REQUEST": ("traffic.aggregate", "TRAFFIC_STATS_RESPONSE"),
+    "CONNECTIONS_QUERY": ("traffic.connections", "CONNECTIONS_RESPONSE"),
+    "HTTP_EVENTS_QUERY": ("traffic.http", "HTTP_EVENTS_RESPONSE"),
 }
 IDENTIFIER = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 ENVELOPE = {"version", "request_id", "device_id", "type", "timestamp", "expires_at", "scope"}
@@ -115,11 +119,15 @@ def _params(kind: str, params: Any) -> None:
     if kind == "PROFILE_LIST_REQUEST":
         allowed = required = {"browser_id"}
     elif kind in ("HISTORY_QUERY", "LOGIN_INVENTORY_QUERY"):
-        allowed = required = {"browser_id", "profile_id"}
+        required = {"browser_id", "profile_id"}
+        allowed = set(required)
+        allowed |= {"search", "page", "page_size", "sort", "cursor", "stream"}
         if kind == "HISTORY_QUERY":
-            allowed = allowed | {"search", "page", "page_size", "start", "end", "sort"}
+            allowed |= {"start", "end"}
+    elif kind in ("CONNECTIONS_QUERY", "HTTP_EVENTS_QUERY"):
+        allowed = {"browser_id", "profile_id", "page_size", "cursor", "stream"}
     elif kind == "TRAFFIC_STATS_REQUEST":
-        allowed = {"browser_id", "profile_id"}
+        allowed = {"browser_id", "profile_id", "stream", "sample_count", "interval_ms"}
     if not required <= params.keys() or params.keys() - allowed:
         _fail("unknown_or_missing_parameter")
     for key in ("browser_id", "profile_id"):
@@ -133,6 +141,16 @@ def _params(kind: str, params: Any) -> None:
     for key, maximum in (("page", 1_000_000), ("page_size", 200)):
         if key in params and (type(params[key]) is not int or not 1 <= params[key] <= maximum):
             _fail("invalid_parameter")
+    if "cursor" in params:
+        _text(params["cursor"], 2048)
+    if "stream" in params and type(params["stream"]) is not bool:
+        _fail("invalid_parameter")
+    if (params.get("stream") or "cursor" in params) and "page_size" in params and params["page_size"] not in (20, 50, 100):
+        _fail("invalid_parameter")
+    if "sample_count" in params and (type(params["sample_count"]) is not int or not 1 <= params["sample_count"] <= 20):
+        _fail("invalid_parameter")
+    if "interval_ms" in params and (type(params["interval_ms"]) is not int or not 1000 <= params["interval_ms"] <= 5000):
+        _fail("invalid_parameter")
     if "sort" in params and params["sort"] not in ("asc", "desc"):
         _fail("invalid_parameter")
     for key in ("start", "end"):
@@ -185,25 +203,54 @@ def _profile(value: Any) -> None:
 
 def _response_payload(kind: str, payload: dict) -> None:
     if kind == "TRAFFIC_STATS_REQUEST":
-        _fields(payload, {"received_bytes", "sent_bytes", "attribution", "collected_at"})
+        _fields(payload, {"received_bytes", "sent_bytes", "attribution", "collected_at"}, {
+            "total_bytes", "download_bps", "upload_bps", "daily_received_bytes", "daily_sent_bytes",
+            "daily_observed_since", "measurement_interval_ms", "sample_state"
+        })
         _unsigned(payload["received_bytes"])
         _unsigned(payload["sent_bytes"])
         if payload["attribution"] != "device":
             _fail("invalid_payload_schema")
         _time(payload["collected_at"])
+        for key in ("total_bytes", "daily_received_bytes", "daily_sent_bytes", "measurement_interval_ms"):
+            if key in payload:
+                _unsigned(payload[key])
+        for key in ("download_bps", "upload_bps"):
+            if key in payload and payload[key] is not None:
+                value = payload[key]
+                if type(value) not in (int, float) or (value > 1e308 or not math.isfinite(value)) or value < 0:
+                    _fail("invalid_payload_schema")
+        if "daily_observed_since" in payload:
+            _time(payload["daily_observed_since"])
+        if "sample_state" in payload and payload["sample_state"] not in ("warming_up", "measured", "counter_reset"):
+            _fail("invalid_payload_schema")
+        return
+    if kind in ("CONNECTIONS_QUERY", "HTTP_EVENTS_QUERY"):
+        _event_page(kind, payload)
         return
     if kind == "HISTORY_QUERY":
-        _fields(payload, {"items", "page", "page_size"}, {"total"})
+        _fields(payload, {"items", "page", "page_size"}, {"total", "next_cursor", "has_more"})
         for key, maximum in (("page", 1_000_000), ("page_size", 200)):
             _unsigned(payload[key], maximum)
             if payload[key] == 0:
                 _fail("invalid_payload_schema")
         if "total" in payload:
             _unsigned(payload["total"])
+    elif kind == "LOGIN_INVENTORY_QUERY":
+        _fields(payload, {"items"}, {"page_size", "next_cursor", "has_more"})
+        if "page_size" in payload:
+            _unsigned(payload["page_size"], 200)
+            if payload["page_size"] == 0:
+                _fail("invalid_payload_schema")
     else:
         _fields(payload, {"items"})
+    if kind in ("HISTORY_QUERY", "LOGIN_INVENTORY_QUERY"):
+        if "next_cursor" in payload and payload["next_cursor"] is not None:
+            _text(payload["next_cursor"], 2048)
+        if "has_more" in payload and type(payload["has_more"]) is not bool:
+            _fail("invalid_payload_schema")
     items = payload["items"]
-    limit = payload["page_size"] if kind == "HISTORY_QUERY" else 1000
+    limit = payload.get("page_size", 1000)
     if not isinstance(items, list) or len(items) > limit:
         _fail("invalid_payload_schema")
     for item in items:
@@ -213,9 +260,10 @@ def _response_payload(kind: str, payload: dict) -> None:
             _string(item["name"], 512)
             if "capabilities" in item:
                 capabilities = item["capabilities"]
-                if (not isinstance(capabilities, list) or len(capabilities) > 3
+                if (not isinstance(capabilities, list) or len(capabilities) > 8
                         or any(not isinstance(c, str) or c not in {
-                            "history.read", "login.inventory", "traffic.aggregate"
+                            "history.read", "login.inventory", "traffic.aggregate", "query.cursor", "query.streaming",
+                            "traffic.connections", "traffic.http"
                         } for c in capabilities)
                         or len(set(capabilities)) != len(capabilities)):
                     _fail("invalid_payload_schema")
@@ -242,13 +290,84 @@ def _response_payload(kind: str, payload: dict) -> None:
                 _fail("invalid_payload_schema")
 
 
+def _event_page(kind: str, payload: dict) -> None:
+    _fields(payload, {"items", "page_size", "next_cursor", "has_more", "availability"}, {"reason"})
+    if payload["page_size"] not in (20, 50, 100) or type(payload["page_size"]) is not int:
+        _fail("invalid_payload_schema")
+    if payload["next_cursor"] is not None:
+        _text(payload["next_cursor"], 2048)
+    if type(payload["has_more"]) is not bool or payload["availability"] not in ("available", "unsupported", "permission_required"):
+        _fail("invalid_payload_schema")
+    if "reason" in payload:
+        _string(payload["reason"], 512)
+    items = payload["items"]
+    if not isinstance(items, list) or len(items) > payload["page_size"]:
+        _fail("invalid_payload_schema")
+    if payload["availability"] != "available" and items:
+        _fail("invalid_payload_schema")
+    for item in items:
+        common = {"id", "observed_at", "transfer_bytes", "browser", "attribution"}
+        _fields(item, common | ({"destination_ip", "port", "protocol"} if kind == "CONNECTIONS_QUERY" else {"method", "safe_url", "status", "duration_ms", "profile_id"}))
+        _text(item["id"], 128)
+        _time(item["observed_at"])
+        if item["transfer_bytes"] is not None:
+            _unsigned(item["transfer_bytes"])
+        if item["browser"] is not None and item["browser"] not in ("chrome", "edge", "brave", "firefox", "safari"):
+            _fail("invalid_payload_schema")
+        if kind == "CONNECTIONS_QUERY":
+            if item["attribution"] not in ("browser", "unknown") or item["protocol"] not in ("tcp", "udp"):
+                _fail("invalid_payload_schema")
+            _unsigned(item["port"], 65535)
+            if item["port"] == 0:
+                _fail("invalid_payload_schema")
+            try:
+                _string(item["destination_ip"], 64)
+                ipaddress.ip_address(item["destination_ip"])
+            except (TypeError, ValueError):
+                _fail("invalid_payload_schema")
+        else:
+            if item["attribution"] not in ("profile", "browser", "unknown"):
+                _fail("invalid_payload_schema")
+            if not isinstance(item["method"], str) or not re.fullmatch(r"[A-Z]{1,20}", item["method"]):
+                _fail("invalid_payload_schema")
+            _string(item["safe_url"], 512)
+            try:
+                url = urlsplit(item["safe_url"])
+                if url.scheme not in ("http", "https") or not url.hostname or url.username or url.password or url.path not in ("", "/") or url.query or url.fragment:
+                    _fail("unsafe_http_url")
+                url.port
+            except ValueError:
+                _fail("invalid_payload_schema")
+            _unsigned(item["status"], 599)
+            if item["status"] < 100:
+                _fail("invalid_payload_schema")
+            value = item["duration_ms"]
+            if value is not None and (type(value) not in (int, float) or (value > 1e308 or not math.isfinite(value)) or value < 0):
+                _fail("invalid_payload_schema")
+            if item["profile_id"] is not None:
+                _text(item["profile_id"])
+                if not IDENTIFIER.fullmatch(item["profile_id"]):
+                    _fail("invalid_payload_schema")
+
+
 def validate_response(raw: bytes | str | dict, pending_request: dict,
                       now: datetime | None = None) -> dict:
     """Match one in-flight response; caller must atomically consume its pending slot."""
     message = _decode(raw)
-    if set(message) - (ENVELOPE | {"payload", "error"}) or not ENVELOPE <= message.keys():
+    if set(message) - (ENVELOPE | {"payload", "error", "sequence", "final"}) or not ENVELOPE <= message.keys():
         _fail("unknown_or_missing_field")
     _envelope(message, _clock(now))
+    stream = pending_request.get("params", {}).get("stream", False)
+    if stream:
+        if not {"sequence", "final"} <= message.keys():
+            _fail("missing_stream_fields")
+        _unsigned(message["sequence"], 1024)
+        if type(message["final"]) is not bool:
+            _fail("invalid_stream_fields")
+        if len(json.dumps(message, ensure_ascii=False, separators=(",", ":")).encode()) > 65536:
+            _fail("stream_frame_too_large")
+    elif "sequence" in message or "final" in message:
+        _fail("unsolicited_stream")
     kind = pending_request.get("type")
     if kind not in REQUESTS:
         _fail("unsupported_type")
@@ -262,6 +381,8 @@ def validate_response(raw: bytes | str | dict, pending_request: dict,
         _fail("unexpected_response")
     has_error = "error" in message
     if has_error:
+        if stream and not message["final"]:
+            _fail("nonfinal_stream_error")
         error = message["error"]
         if not isinstance(error, dict) or set(error) != {"code", "message"}:
             _fail("invalid_error")

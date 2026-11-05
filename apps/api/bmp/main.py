@@ -32,9 +32,10 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import sessionmaker
+from starlette.background import BackgroundTask
 
 from .config import Settings
 from .installers import latest_installers
@@ -92,6 +93,69 @@ class Limiter:
         events.append(now)
 
 
+class StreamRequest:
+    """Bounded, single-unacknowledged-frame state; never persists browser content."""
+
+    def __init__(self, envelope, ws):
+        self.envelope = envelope
+        self.ws = ws
+        self.queue = asyncio.Queue(maxsize=2)
+        self.expected_sequence = 0
+        self.outstanding = False
+        self.final = False
+        self.total_bytes = 0
+        self.total_items = 0
+
+    def accept(self, raw, message):
+        if self.final or self.outstanding or len(raw.encode()) > 65536:
+            raise ProtocolError("stream_backpressure")
+        validate_response(raw, self.envelope)
+        if message["sequence"] != self.expected_sequence:
+            raise ProtocolError("stream_sequence")
+        self.total_bytes += len(raw.encode())
+        self.total_items += len(message.get("payload", {}).get("items", []))
+        if self.total_bytes > 1048576 or self.total_items > 100:
+            raise ProtocolError("stream_capacity")
+        if self.envelope["type"] != "TRAFFIC_STATS_REQUEST":
+            if message.get("payload", {}).get(
+                "page_size", self.envelope["params"].get("page_size", 50)
+            ) != self.envelope["params"].get("page_size", 50):
+                raise ProtocolError("stream_page_size")
+        elif self.expected_sequence >= self.envelope["params"].get("sample_count", 20):
+            raise ProtocolError("stream_sample_capacity")
+        record = {
+            "request_id": message["request_id"],
+            "sequence": message["sequence"],
+            "final": message["final"],
+        }
+        if "payload" in message:
+            record["payload"] = message["payload"]
+        if "error" in message:
+            record["error"] = message["error"]
+        try:
+            self.queue.put_nowait(record)
+        except asyncio.QueueFull:
+            raise ProtocolError("stream_queue_full") from None
+        self.expected_sequence += 1
+        self.final = message["final"]
+        self.outstanding = not self.final
+
+    def acknowledge(self, sequence):
+        if not self.outstanding or sequence != self.expected_sequence - 1:
+            raise ProtocolError("stream_ack_sequence")
+        self.outstanding = False
+
+    def clear(self):
+        while not self.queue.empty():
+            self.queue.get_nowait()
+
+    def abort(self, error):
+        self.final = True
+        self.outstanding = False
+        self.clear()
+        self.queue.put_nowait(error)
+
+
 def create_app(settings=None):
     config = settings or Settings()
     engine = create_engine(
@@ -104,7 +168,44 @@ def create_app(settings=None):
     )
     sessions = sessionmaker(engine, expire_on_commit=False)
     hasher, limiter = PasswordHasher(), Limiter()
-    connections, pending = {}, {}
+    connections, pending, streams, write_locks = {}, {}, {}, {}
+
+    async def send_agent(ws, message):
+        lock = write_locks.setdefault(ws, asyncio.Lock())
+        async with lock:
+            await asyncio.wait_for(ws.send_json(message), timeout=5)
+
+    async def cancel_agent(ws, device_id, request_id):
+        try:
+            await send_agent(
+                ws,
+                {
+                    "version": 1,
+                    "type": "CANCEL_REQUEST",
+                    "device_id": device_id,
+                    "request_id": request_id,
+                },
+            )
+        except (RuntimeError, OSError, TimeoutError):
+            pass
+
+    def abort_streams(device_id, error, ws=None):
+        for key, state in list(streams.items()):
+            if key[0] == device_id and (ws is None or state.ws is ws):
+                state.abort(error)
+
+    async def next_or_disconnect(queue, request, deadline):
+        while True:
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                raise TimeoutError
+            if await request.is_disconnected():
+                raise ConnectionError
+            try:
+                return await asyncio.wait_for(queue.get(), timeout=min(0.1, remaining))
+            except TimeoutError:
+                continue
+
     dummy_hash = hasher.hash(secrets.token_urlsafe(32))
 
     @asynccontextmanager
@@ -112,12 +213,17 @@ def create_app(settings=None):
         if config.auto_create:
             Base.metadata.create_all(engine)
         yield
+        for state in list(streams.values()):
+            state.abort(ConnectionError())
         for ws in list(connections.values()):
             await ws.close(code=1001)
+        streams.clear()
+        write_locks.clear()
         engine.dispose()
 
     app = FastAPI(title="Brauzer kuzatuv platformasi", lifespan=lifespan)
     app.state.engine, app.state.sessions = engine, sessions
+    app.state.streams = streams
 
     @app.exception_handler(RequestValidationError)
     async def invalid(request, exc):
@@ -477,6 +583,7 @@ def create_app(settings=None):
         }
 
     async def interrupt_device(device_id):
+        abort_streams(device_id, PermissionError())
         # Fail in-flight requests before closing so callers cannot receive stale data.
         for key, entry in list(pending.items()):
             if key[0] == device_id and not entry[0].done():
@@ -524,6 +631,7 @@ def create_app(settings=None):
         d.revoked = True
         audit(s, identity[0].id, "device.revoked", d.id)
         s.commit()
+        abort_streams(d.id, ConnectionError())
         if ws := connections.pop(d.id, None):
             await ws.close(code=1008)
         for key, future in list(pending.items()):
@@ -602,6 +710,8 @@ def create_app(settings=None):
         s=Depends(db),
     ):
         rate(request, "query", 60)
+        if body.params.stream:
+            fail(422, "Streaming uchun /stream manzilidan foydalaning")
         d = owned(s, device_id, identity[0].id)
         if d.monitoring_paused:
             fail(403, "Kuzatuv vaqtincha toʻxtatilgan")
@@ -611,7 +721,7 @@ def create_app(settings=None):
         ws = connections.get(device_id)
         if not ws:
             fail(409, "Qurilma tarmoqda emas")
-        if sum(key[0] == device_id for key in pending) >= 32:
+        if sum(key[0] == device_id for key in pending) >= 32 or len(pending) >= 256:
             fail(429, "Qurilma band")
         rid = str(uuid4())
         now = utc()
@@ -633,9 +743,20 @@ def create_app(settings=None):
         except ProtocolError:
             fail(422, "Soʻrov parametrlari notoʻgʻri")
         pending[(device_id, rid)] = (future, envelope)
+        received = False
         try:
-            await ws.send_json(envelope)
-            return await asyncio.wait_for(future, timeout=config.query_timeout)
+            await send_agent(ws, envelope)
+            deadline = asyncio.get_running_loop().time() + min(config.query_timeout, 30)
+            while not future.done():
+                if await request.is_disconnected():
+                    raise ConnectionError()
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    raise TimeoutError()
+                await asyncio.wait({future}, timeout=min(0.1, remaining))
+            result = future.result()
+            received = True
+            return result
         except PermissionError:
             fail(403, "Qurilma ruxsatlari oʻzgartirildi")
         except TimeoutError:
@@ -644,6 +765,148 @@ def create_app(settings=None):
             fail(409, "Qurilma uzildi")
         finally:
             pending.pop((device_id, rid), None)
+            if not future.done():
+                future.cancel()
+            if not received:
+                await cancel_agent(ws, device_id, rid)
+
+    @app.post("/api/v1/devices/{device_id}/stream")
+    async def stream_query(
+        device_id: str,
+        body: Query,
+        request: Request,
+        identity=Depends(auth),
+        s=Depends(db),
+    ):
+        rate(request, "query", 60)
+        if body.type not in {
+            "HISTORY_QUERY",
+            "LOGIN_INVENTORY_QUERY",
+            "TRAFFIC_STATS_REQUEST",
+            "CONNECTIONS_QUERY",
+            "HTTP_EVENTS_QUERY",
+        }:
+            fail(422, "Bu soʻrov streaming uchun qoʻllanmaydi")
+        d = owned(s, device_id, identity[0].id)
+        if d.monitoring_paused or SCOPES[body.type] not in json.loads(d.scopes):
+            fail(403, "Bu maʼlumot uchun ruxsat berilmagan")
+        ws = connections.get(device_id)
+        if ws is None:
+            fail(409, "Qurilma tarmoqda emas")
+        if len(streams) >= 128 or sum(key[0] == device_id for key in streams) >= 4:
+            fail(429, "Qurilma streaming soʻrovlari bilan band")
+        params = body.params.model_dump(
+            mode="json", exclude_none=True, exclude_unset=True
+        )
+        params["stream"] = True
+        if body.type != "TRAFFIC_STATS_REQUEST":
+            params.setdefault("page_size", 50)
+        if params.get("page_size", 50) not in (20, 50, 100):
+            fail(422, "Sahifa hajmi 20, 50 yoki 100 boʻlsin")
+        rid, now = str(uuid4()), utc()
+        envelope = {
+            "version": 1,
+            "request_id": rid,
+            "device_id": device_id,
+            "type": body.type,
+            "timestamp": now.isoformat(),
+            "expires_at": (now + timedelta(seconds=30)).isoformat(),
+            "scope": SCOPES[body.type],
+            "params": params,
+        }
+        try:
+            validate_request(envelope, device_id, json.loads(d.scopes))
+        except ProtocolError:
+            fail(422, "Soʻrov parametrlari notoʻgʻri")
+        state = StreamRequest(envelope, ws)
+        key = (device_id, rid)
+        streams[key] = state
+        session_id = identity[1].id
+        deadline = asyncio.get_running_loop().time() + min(config.query_timeout, 30)
+
+        async def cleanup():
+            if streams.get(key) is state:
+                streams.pop(key, None)
+                state.clear()
+                await cancel_agent(ws, device_id, rid)
+
+        async def records():
+            try:
+                await send_agent(ws, envelope)
+                while True:
+                    record = await next_or_disconnect(state.queue, request, deadline)
+                    if isinstance(record, Exception):
+                        raise record
+                    # Queued data cannot escape after logout, expiry, pause or scope revocation.
+                    with sessions() as check:
+                        current = check.get(Device, device_id)
+                        session = check.get(Session, session_id)
+                        if (
+                            not session
+                            or aware(session.expires_at) <= utc()
+                            or not current
+                            or current.revoked
+                            or current.monitoring_paused
+                            or envelope["scope"] not in json.loads(current.scopes)
+                        ):
+                            raise PermissionError()
+                    sequence, final = record["sequence"], record["final"]
+                    yield (
+                        json.dumps(record, ensure_ascii=False, separators=(",", ":"))
+                        + "\n"
+                    ).encode()
+                    record.clear()
+                    if final:
+                        break
+                    state.acknowledge(sequence)
+                    await send_agent(
+                        ws,
+                        {
+                            "version": 1,
+                            "type": "STREAM_ACK",
+                            "device_id": device_id,
+                            "request_id": rid,
+                            "sequence": sequence,
+                        },
+                    )
+            except (
+                PermissionError,
+                TimeoutError,
+                ConnectionError,
+                RuntimeError,
+                OSError,
+                ProtocolError,
+            ) as error:
+                if not await request.is_disconnected():
+                    code = (
+                        "DENIED"
+                        if isinstance(error, PermissionError)
+                        else "TIMEOUT"
+                        if isinstance(error, TimeoutError)
+                        else "DISCONNECTED"
+                    )
+                    record = {
+                        "request_id": rid,
+                        "sequence": state.expected_sequence,
+                        "final": True,
+                        "error": {
+                            "code": code,
+                            "message": "Soʻrov toʻxtatildi; ruxsat yoki qurilma ulanishini tekshiring",
+                        },
+                    }
+                    yield (
+                        json.dumps(record, ensure_ascii=False, separators=(",", ":"))
+                        + "\n"
+                    ).encode()
+            finally:
+                await asyncio.shield(cleanup())
+
+        return StreamingResponse(
+            records(),
+            media_type="application/x-ndjson",
+            headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+            background=BackgroundTask(cleanup),
+        )
 
     @app.websocket("/api/v1/ws/agent")
     async def agent(ws: WebSocket):
@@ -678,6 +941,7 @@ def create_app(settings=None):
         inbound = deque()
         last_seen_update = 0.0
         if previous:
+            abort_streams(device_id, ConnectionError(), previous)
             await previous.close(code=1008)
         try:
             while True:
@@ -685,7 +949,7 @@ def create_app(settings=None):
                 tick = asyncio.get_running_loop().time()
                 while inbound and inbound[0] < tick - 60:
                     inbound.popleft()
-                if len(inbound) >= 180:
+                if len(inbound) >= 1800:
                     await ws.close(code=1008)
                     break
                 inbound.append(tick)
@@ -714,8 +978,8 @@ def create_app(settings=None):
                     ):
                         await ws.close(code=1008)
                         break
-                    await ws.send_json(
-                        {"version": 1, "type": "HEARTBEAT", "device_id": device_id}
+                    await send_agent(
+                        ws, {"version": 1, "type": "HEARTBEAT", "device_id": device_id}
                     )
                     continue
                 rid = message.get("request_id")
@@ -723,6 +987,24 @@ def create_app(settings=None):
                     await ws.close(code=1008)
                     break
                 key = (device_id, rid)
+                if state := streams.get(key):
+                    if (
+                        state.ws is not ws
+                        or d.monitoring_paused
+                        or state.envelope["scope"] not in json.loads(d.scopes)
+                    ):
+                        state.abort(PermissionError())
+                        continue
+                    try:
+                        state.accept(raw, message)
+                        message.clear()
+                        raw = ""
+                    except (ProtocolError, KeyError, TypeError):
+                        state.abort(ConnectionError())
+                        await cancel_agent(ws, device_id, rid)
+                        await ws.close(code=1008)
+                        break
+                    continue
                 entry = pending.get(key)
                 if not entry:
                     continue
@@ -743,9 +1025,14 @@ def create_app(settings=None):
                             ),
                         }
                     )
+                message.clear()
+                raw = ""
+                future, entry, envelope = None, None, None
         except (TimeoutError, WebSocketDisconnect, ValueError, RuntimeError):
             pass
         finally:
+            abort_streams(device_id, ConnectionError(), ws)
+            write_locks.pop(ws, None)
             if connections.get(device_id) is ws:
                 connections.pop(device_id, None)
                 for key, entry in list(pending.items()):

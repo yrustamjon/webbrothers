@@ -1,23 +1,13 @@
 import { useState, lazy, Suspense } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  api,
-  APIError,
-  queryAgent,
-  type Device,
-  type Browser,
-  type History,
-} from "./api";
+import { api, APIError, queryAgent, type Device, type Browser } from "./api";
 import { useSelection } from "./store";
 import Downloads from "./Downloads";
 import DeviceSettings from "./DeviceSettings";
-import {
-  scopes,
-  toggleBrowser,
-  queryParams,
-  unwrap,
-  safeURL,
-} from "./model.mjs";
+import { scopes, toggleBrowser, unwrap } from "./model.mjs";
+import LocalPasswords from "./LocalPasswords";
+const HistoryView = lazy(() => import("./HistoryView"));
+const Inventory = lazy(() => import("./Inventory"));
 const TrafficView = lazy(() => import("./TrafficView"));
 const time = (value?: string) =>
   value ? new Date(value).toLocaleString("uz-UZ") : "Hali ulanmagan";
@@ -354,14 +344,6 @@ export function Pairing({
     </section>
   );
 }
-function compactHistoryURL(value: string) {
-  const safe = safeURL(value);
-  if (!safe) return "Ochib boʻlmaydigan manzil";
-  const url = new URL(safe);
-  const label = `${url.hostname}${url.pathname === "/" ? "" : url.pathname}`;
-  return label.length > 110 ? `${label.slice(0, 107)}…` : label;
-}
-
 function ProfileLabel({
   name,
   metadataAvailable,
@@ -393,231 +375,6 @@ function ProfileLabel({
       <span>{primary}</span>
       {secondary && <small>{secondary}</small>}
     </span>
-  );
-}
-
-function HistoryView({
-  device,
-  browser,
-  profile,
-}: {
-  device: string;
-  browser: string;
-  profile: string;
-}) {
-  const [filters, setFilters] = useState({
-    search: "",
-    start: "",
-    end: "",
-    sort: "desc",
-    page: 1,
-  });
-  const [applied, setApplied] = useState(filters);
-  const history = useQuery<History>({
-    queryKey: ["history", device, browser, profile, applied],
-    queryFn: async () =>
-      unwrap(
-        await queryAgent(
-          device,
-          "HISTORY_QUERY",
-          queryParams(browser, profile, applied),
-        ),
-      ) as History,
-  });
-  return (
-    <section>
-      <h2>Koʻrish tarixi</h2>
-      <form
-        className="filters"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setApplied({ ...filters, page: 1 });
-        }}
-      >
-        <label>
-          URL, sarlavha yoki domen
-          <input
-            value={filters.search}
-            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-          />
-        </label>
-        <label>
-          Boshlanish (UTC)
-          <input
-            type="date"
-            value={filters.start}
-            onChange={(e) => setFilters({ ...filters, start: e.target.value })}
-          />
-        </label>
-        <label>
-          Tugash (UTC)
-          <input
-            type="date"
-            value={filters.end}
-            onChange={(e) => setFilters({ ...filters, end: e.target.value })}
-          />
-        </label>
-        <label>
-          Tartib
-          <select
-            value={filters.sort}
-            onChange={(e) => setFilters({ ...filters, sort: e.target.value })}
-          >
-            <option value="desc">Eng yangi</option>
-            <option value="asc">Eng eski</option>
-          </select>
-        </label>
-        <button>Qidirish</button>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => history.refetch()}
-        >
-          Yangilash
-        </button>
-      </form>
-      <ErrorBox error={history.error} />
-      {history.isFetching && <p role="status">Agentdan olinmoqda…</p>}
-      {history.data && (
-        <>
-          <p className="muted">
-            {history.data.total === undefined
-              ? `${history.data.items.length} ta yozuv koʻrsatilmoqda`
-              : `${history.data.total} ta yozuv`}{" "}
-            · Sahifa {applied.page}
-          </p>
-          <div className="table-scroll">
-            <table
-              className="history-table"
-              role="table"
-              aria-label="Koʻrish tarixi"
-            >
-              <thead role="rowgroup">
-                <tr role="row">
-                  <th role="columnheader" scope="col">
-                    Sahifa
-                  </th>
-                  <th role="columnheader" scope="col">
-                    Domen
-                  </th>
-                  <th role="columnheader" scope="col">
-                    Vaqt
-                  </th>
-                  <th role="columnheader" scope="col">
-                    Tashrif
-                  </th>
-                </tr>
-              </thead>
-              <tbody role="rowgroup">
-                {history.data.items.map((row, i) => (
-                  <tr key={`${row.url}-${i}`} role="row">
-                    <td role="cell">
-                      {safeURL(row.url) ? (
-                        <a
-                          href={safeURL(row.url)!}
-                          target="_blank"
-                          rel="noreferrer noopener"
-                          className="history-title"
-                        >
-                          {row.title || compactHistoryURL(row.url)}
-                        </a>
-                      ) : (
-                        <span className="history-title">
-                          {row.title || compactHistoryURL(row.url)}
-                        </span>
-                      )}
-                      <small className="history-url">
-                        {compactHistoryURL(row.url)}
-                      </small>
-                      <details className="history-address">
-                        <summary>Toʻliq manzil</summary>
-                        <code>{row.url}</code>
-                      </details>
-                    </td>
-                    <td role="cell" data-label="Domen">
-                      {row.domain || "—"}
-                    </td>
-                    <td role="cell" data-label="Vaqt">
-                      {time(row.visited_at)}
-                    </td>
-                    <td role="cell" data-label="Tashrif">
-                      {row.visit_count ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!history.data.items.length && (
-            <p>Tanlangan filtrlarda tarix topilmadi.</p>
-          )}
-          <div className="actions">
-            <button
-              disabled={applied.page === 1 || history.isFetching}
-              onClick={() => setApplied({ ...applied, page: applied.page - 1 })}
-            >
-              Oldingi
-            </button>
-            <button
-              disabled={history.data.items.length < 25 || history.isFetching}
-              onClick={() => setApplied({ ...applied, page: applied.page + 1 })}
-            >
-              Keyingi
-            </button>
-          </div>
-        </>
-      )}
-    </section>
-  );
-}
-function LocalPasswords({ browser }: { browser: string }) {
-  const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState(false);
-  const addresses: Record<string, string> = {
-    chrome: "chrome://password-manager/passwords",
-    edge: "edge://settings/autofill/passwords",
-    brave: "brave://password-manager/passwords",
-    firefox: "about:logins",
-  };
-  const address = addresses[browser];
-  return (
-    <div className="local-passwords">
-      <div className="section-kicker">
-        <Icon name="shield" />
-        <span>PAROLNI KOMPYUTERINGIZDA KOʻRISH</span>
-      </div>
-      <h3>Brauzer parol menejeri</h3>
-      <p>
-        {browser === "safari"
-          ? "Mac kompyuteringizda Passwords ilovasini yoki Safari → Settings → Passwords boʻlimini oching va OS tasdigʻidan oʻting."
-          : "Tanlangan qurilmada aynan shu brauzer profilini oching. Quyidagi manzilni uning manzil satriga qoʻying; brauzer talab qilsa OS tasdigʻidan oʻting."}
-      </p>
-      {address && (
-        <div className="password-manager-address">
-          <code>{address}</code>
-          <button
-            className="secondary"
-            onClick={async () => {
-              try {
-                if (!navigator.clipboard) throw new Error();
-                await navigator.clipboard.writeText(address);
-                setCopied(true);
-                setCopyError(false);
-              } catch {
-                setCopyError(true);
-              }
-            }}
-          >
-            {copied ? "Nusxalandi" : "Manzilni nusxalash"}
-          </button>
-        </div>
-      )}
-      {copyError && <p role="status">Manzilni qoʻlda nusxalang.</p>}
-      <small>
-        Bu sayt parol qiymatlarini oʻqimaydi va parol menejerini masofadan
-        ochmaydi.
-      </small>
-    </div>
   );
 }
 
@@ -690,77 +447,6 @@ function CategoryAccess({
   );
 }
 
-function Inventory({
-  device,
-  browser,
-  profile,
-}: {
-  device: string;
-  browser: string;
-  profile: string;
-}) {
-  const inventory = useQuery<{
-    items: { domain: string; username: string; credential_exists: boolean }[];
-  }>({
-    queryKey: ["inventory", device, browser, profile],
-    queryFn: async () =>
-      unwrap(
-        await queryAgent(device, "LOGIN_INVENTORY_QUERY", {
-          browser_id: browser,
-          profile_id: profile,
-        }),
-      ),
-  });
-  return (
-    <section>
-      <h2>Saqlangan saytlar va loginlar</h2>
-      <p>
-        Faqat sayt domeni va foydalanuvchi nomi olinadi. Parol qiymatlari,
-        cookie va tokenlar oʻqilmaydi. Eng koʻpi 200 ta yozuv koʻrsatiladi.
-      </p>
-      <button
-        className="secondary"
-        onClick={() => inventory.refetch()}
-        disabled={inventory.isFetching}
-      >
-        Loginlarni yangilash
-      </button>
-      <ErrorBox error={inventory.error} />
-      {inventory.isFetching && <p role="status">Loginlar olinmoqda…</p>}
-      {inventory.data && (
-        <>
-          {!inventory.data.items.length ? (
-            <p>Bu profilda saqlangan login topilmadi.</p>
-          ) : (
-            <table className="inventory-table">
-              <thead>
-                <tr>
-                  <th>Sayt</th>
-                  <th>Foydalanuvchi</th>
-                  <th>Holat</th>
-                </tr>
-              </thead>
-              <tbody>
-                {inventory.data.items.map((item, index) => (
-                  <tr key={index}>
-                    <td>{item.domain}</td>
-                    <td>{item.username || "Koʻrsatilmagan"}</td>
-                    <td>
-                      {item.credential_exists
-                        ? "Saqlangan login yozuvi"
-                        : "Login mavjud emas"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </>
-      )}
-      <LocalPasswords browser={browser} />
-    </section>
-  );
-}
 export function Explorer({
   device,
   onDownload,
@@ -773,8 +459,10 @@ export function Explorer({
   const [profileSearch, setProfileSearch] = useState("");
   const browsers = useQuery<{ items: Browser[] }>({
     queryKey: ["browsers", device.id],
-    queryFn: async () =>
-      unwrap(await queryAgent(device.id, "BROWSER_LIST_REQUEST")) as {
+    queryFn: async ({ signal }) =>
+      unwrap(
+        await queryAgent(device.id, "BROWSER_LIST_REQUEST", {}, signal),
+      ) as {
         items: Browser[];
       },
     enabled: device.status === "online" && !device.monitoring_paused,
@@ -915,9 +603,7 @@ export function Explorer({
                   <div key={browser.id} className="browser-group">
                     <button
                       className="browser"
-                      aria-expanded={
-                        !!search || selection.browser === browser.id
-                      }
+                      aria-expanded={selection.browser === browser.id}
                       onClick={() =>
                         selection.selectBrowser(
                           toggleBrowser(selection.browser, browser.id),
@@ -934,10 +620,10 @@ export function Explorer({
                           : browser.allProfiles}
                       </span>
                       <span aria-hidden="true">
-                        {search || selection.browser === browser.id ? "−" : "+"}
+                        {selection.browser === browser.id ? "−" : "+"}
                       </span>
                     </button>
-                    {(!!search || selection.browser === browser.id) && (
+                    {selection.browser === browser.id && (
                       <div className="profiles">
                         {browser.profiles.length === 0 && (
                           <p>Profil mavjud emas.</p>
@@ -1018,19 +704,34 @@ export function Explorer({
                     />
                   )}
                   {activeTab === "history" && has("history.read") && (
-                    <HistoryView
-                      key={`${device.id}-${selection.profile}`}
-                      device={device.id}
-                      browser={selectedBrowser.id}
-                      profile={selectedProfile.id}
-                    />
+                    <Suspense
+                      fallback={<p role="status">Tarix moduli yuklanmoqda…</p>}
+                    >
+                      <HistoryView
+                        key={`${device.id}-${selection.profile}`}
+                        capabilities={capabilities}
+                        device={device.id}
+                        browser={selectedBrowser.id}
+                        profile={selectedProfile.id}
+                      />
+                    </Suspense>
                   )}{" "}
                   {activeTab === "inventory" && has("login.inventory") && (
-                    <Inventory
-                      device={device.id}
-                      browser={selectedBrowser.id}
-                      profile={selectedProfile.id}
-                    />
+                    <Suspense
+                      fallback={
+                        <p role="status">Loginlar moduli yuklanmoqda…</p>
+                      }
+                    >
+                      <Inventory
+                        key={`${device.id}-${selection.profile}`}
+                        capabilities={capabilities}
+                        browserName={selectedBrowser.name}
+                        profileName={selectedProfile.name}
+                        device={device.id}
+                        browser={selectedBrowser.id}
+                        profile={selectedProfile.id}
+                      />
+                    </Suspense>
                   )}
                   {activeTab === "traffic" && has("traffic.aggregate") && (
                     <Suspense
@@ -1038,7 +739,14 @@ export function Explorer({
                         <p role="status">Trafik grafigi yuklanmoqda…</p>
                       }
                     >
-                      <TrafficView device={device.id} />
+                      <TrafficView
+                        key={`${device.id}-${selection.profile}`}
+                        device={device.id}
+                        capabilities={capabilities}
+                        scopes={device.scopes}
+                        browser={selectedBrowser.id}
+                        profile={selectedProfile.id}
+                      />
                     </Suspense>
                   )}
                 </>

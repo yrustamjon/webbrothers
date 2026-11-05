@@ -80,7 +80,7 @@ def main():
         env = os.environ.copy()
         env.update(BROWSER_AGENT_PROFILE_HOME=directory, BROWSER_AGENT_KEY_PASSPHRASE=secrets.token_urlsafe(32))
         if args.ca_file: env['SSL_CERT_FILE'] = str(Path(args.ca_file).resolve())
-        common = [str(args.agent.resolve()),'--server',args.base_url,'--state',str(root/'identity.enc'),'--scopes','browser.discovery,profile.discovery,history.read,login.inventory,traffic.aggregate']
+        common = [str(args.agent.resolve()),'--server',args.base_url,'--state',str(root/'identity.enc'),'--scopes','browser.discovery,profile.discovery,history.read,login.inventory,traffic.aggregate,traffic.connections,traffic.http']
         pairing = subprocess.Popen(common+['--action','pair'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
         lines = queue.Queue()
         def reader():
@@ -99,7 +99,7 @@ def main():
                     code = line.rsplit(':',1)[-1].strip()
                     break
             if not code: raise AssertionError('Agent ulash kodini bermadi')
-            scopes = ['browser.discovery','profile.discovery','history.read','login.inventory','traffic.aggregate']
+            scopes = ['browser.discovery','profile.discovery','history.read','login.inventory','traffic.aggregate','traffic.connections','traffic.http']
             call(owner,'/pairing/approve',{'code':code,'scopes':scopes},csrf)
             pairing.wait(timeout=20)
             if pairing.returncode: raise AssertionError('Agent ulanishi bajarilmadi')
@@ -138,6 +138,20 @@ def main():
             traffic = call(owner,path,{'type':'TRAFFIC_STATS_REQUEST','params':{}},csrf)
             stats = traffic.get('payload',traffic)
             assert stats['received_bytes']>=0 and stats['sent_bytes']>=0 and stats['attribution']=='device'
+            # Application-owned loopback key only; never reads browser passwords/tokens.
+            bridge = json.loads(subprocess.check_output(common+['--action','bridge-info'],env=env,text=True))
+            metadata = {'method':'GET','safe_url':'https://http-fixture.example.test/private?token=never-collect','status':200,'duration_ms':12.5,'transfer_bytes':None,'browser':'chrome'}
+            bridge_request = urllib.request.Request(bridge['url']+'/v1/http-events',data=json.dumps(metadata).encode(),headers={'Origin':'chrome-extension://synthetic-test','Authorization':'Bearer '+bridge['key'],'Content-Type':'application/json'})
+            with urllib.request.urlopen(bridge_request,timeout=5) as response:
+                assert response.status == 204
+            bridge.clear()
+            events = call(owner,path,{'type':'HTTP_EVENTS_QUERY','params':{'browser_id':'chrome','page_size':50}},csrf)['payload']
+            assert events['availability']=='available' and len(events['items'])==1
+            assert events['items'][0]['safe_url']=='https://http-fixture.example.test'
+            assert events['items'][0]['profile_id'] is None and events['items'][0]['transfer_bytes'] is None
+            unsupported = call(owner,path,{'type':'CONNECTIONS_QUERY','params':{'browser_id':'chrome','profile_id':profiles[0]['id'],'page_size':50}},csrf)['payload']
+            assert unsupported['availability']=='unsupported' and not unsupported['items']
+            print('PASS: HTTP metadata origin-only bridge → native agent → authenticated WSS relay; exact profile attribution is unavailable')
             runner.terminate()
             runner.wait(timeout=5)
             deadline = time.monotonic()+10

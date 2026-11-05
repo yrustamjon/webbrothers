@@ -87,6 +87,30 @@ func ValidateIncoming(data []byte, m *Message, device string) error {
 	if _, ok := fields["error"]; ok {
 		return errors.New("Soʻrovda xato maydoni boʻlmasin")
 	}
+	if m.Type == "STREAM_ACK" || m.Type == "CANCEL_REQUEST" {
+		if m.Version != 1 || m.DeviceID != device || m.RequestID == "" || len(m.RequestID) > 128 {
+			return errors.New("Boshqaruv identifikatori notoʻgʻri")
+		}
+		allowed := map[string]bool{"version": true, "type": true, "device_id": true, "request_id": true}
+		if m.Type == "STREAM_ACK" {
+			allowed["sequence"] = true
+			if m.Sequence == nil || *m.Sequence < 0 || *m.Sequence > 4096 {
+				return errors.New("ACK ketma-ketligi notoʻgʻri")
+			}
+		}
+		for key := range fields {
+			if !allowed[key] {
+				return errors.New("Boshqaruv maydoni notoʻgʻri")
+			}
+		}
+		return nil
+	}
+	if _, ok := fields["sequence"]; ok {
+		return errors.New("Soʻrovda stream javob maydoni boʻlmasin")
+	}
+	if _, ok := fields["final"]; ok {
+		return errors.New("Soʻrovda stream javob maydoni boʻlmasin")
+	}
 	if m.Type == "HEARTBEAT" {
 		if m.Version != 1 || m.DeviceID != device {
 			return errors.New("Heartbeat identifikatori notoʻgʻri")

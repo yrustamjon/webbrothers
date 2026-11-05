@@ -73,10 +73,14 @@ Bu sinov oʻzining vaqtinchalik profili va hisoblaridan foydalanadi; haqiqiy sha
 
 ## Holat va chegaralar
 
-Bu faol ishlab chiqilayotgan tizim. Qoʻllanmagan imkoniyatlar soxta natija oʻrniga aniq xato bilan koʻrsatiladi. Chrome, Edge va Brave uchun login domeni va foydalanuvchi nomi read-only olinadi; parol qiymati/cookie oʻqilmaydi. Firefox va Safari login inventari shifrlangan credential omborini ochishni talab qilgani uchun qoʻllanmaydi. Safari tarixi va Linux/macOS/Windows qurilma trafik hisoblagichlari qoʻshilgan; yangi ruxsatlar faqat qayta rozilik va ulash bilan beriladi. HTTP metamaʼlumotlari va profilga aniq trafik atributsiyasi hali yoʻq; HTTPS trafik ushlanmaydi yoki ochilmaydi. Trafik grafigi hozir qurilma hisoblagichlarini davriy soʻrashga asoslangan.
+Bu faol ishlab chiqilayotgan tizim. Chrome, Edge va Brave login inventari faqat domen, foydalanuvchi nomi va saqlangan login mavjudligini oladi; parol qiymati/cookie oʻqilmaydi. Firefox/Safari inventari uchun qoʻllanmagan holat aniq koʻrsatiladi. Haqiqiy parolni koʻrish tanlangan qurilmadagi brauzer/OS parol menejerida odatiy avtorizatsiya bilan bajariladi.
 
-Hozir router bir API jarayonida ishlaydi. Redis koʻp-worker koordinatsiyasi, MFA, delegatsiyalangan ruxsatlar, OS keychain integratsiyasi, avtomatik imzolangan yangilanishlar va toʻliq platforma oʻrnatish sinovlari alohida ishlar. Windows/macOS binarini kompilyatsiyalash u yerda amaliy tekshiruv oʻtkazilganini anglatmaydi. CI binarlari imzolanmagan sinov artefaktlari; production paketlari deb tarqatmang.
+Tarix/loginlar talab boʻyicha, odatda50 yozuv bilan olinadi; interfeys20/50/100, autentifikatsiyalangan cursor,250ms qidiruv kechiktirishi, bekor qilish va virtual roʻyxatni qoʻllaydi. Yangi agent WSS orqali ACK bilan chegaralangan qismlarda javob beradi; eski0.1.8 agentlar uchun moslik saqlanadi. Butun tarix ochilishda yuklanmaydi. Qurilma umumiy trafiki jonli stream, kuzatilgan tezlik va UTC kunning agent ishlagan qismi hisobini beradi.
 
-SMTP sozlanmaguncha tasdiqlash va parol tiklash xati yuborilmaydi. Imzolangan agent relizi serverda sozlanmaguncha yuklab olish mavjud emas. Maxfiy qiymatlarni Gitga qoʻshmang.
+Qoʻshimcha tarmoq ulanishlari va ixtiyoriy HTTP kengaytma metadata si alohida mahalliy va saytdagi rozilikni talab qiladi. Profilga aniq trafik atributsiyasi mavjud emas; qoʻllanmagan OS/API holati yashirilmaydi. HTTPS ochilmaydi. [HTTP kengaytma](extensions/http-metadata/README.md), [protokol va chegaralar](docs/performance-protocol.md), [oʻlchovlar](docs/performance-results.md).
 
-[Arxitektura](docs/architecture.md), [ishlar rejasi](docs/development-plan.md), [xavfsizlik](docs/security.md) va komponent README fayllarida tafsilotlar bor. Yakuniy tekshirilgan holat `docs/validation.md` da qayd etiladi.
+Router hozir bitta API jarayonida ishlaydi. Koʻp-worker relay koordinatsiyasi, MFA, delegatsiyalangan ruxsatlar, OS keychain integratsiyasi, avtomatik imzolangan yangilanishlar va toʻliq platforma oʻrnatish sinovlari alohida ishlar. Kompilyatsiya yoki CI sinovi foydalanuvchi kompyuteridagi amaliy oʻrnatish sinovini almashtirmaydi. Developer ID/notarization va Authenticode hali sozlanmagan; imzosiz paketlar haqida yuklash sahifasida ogohlantirish bor.
+
+SMTP sozlanmaguncha tasdiqlash va parol tiklash xati yuborilmaydi. Maxfiy qiymatlarni Gitga qoʻshmang.
+
+[Arxitektura](docs/architecture.md), [ishlar rejasi](docs/development-plan.md), [xavfsizlik](docs/security.md) va komponent README fayllarida tafsilotlar bor. Tekshirilgan holat [validation](docs/validation.md) va [oʻlchovlar](docs/performance-results.md) da qayd etiladi.

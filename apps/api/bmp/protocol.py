@@ -9,6 +9,8 @@ SCOPES = {
     "HISTORY_QUERY": "history.read",
     "LOGIN_INVENTORY_QUERY": "login.inventory",
     "TRAFFIC_STATS_REQUEST": "traffic.aggregate",
+    "CONNECTIONS_QUERY": "traffic.connections",
+    "HTTP_EVENTS_QUERY": "traffic.http",
 }
 RESPONSES = dict(
     zip(
@@ -19,6 +21,8 @@ RESPONSES = dict(
             "HISTORY_RESPONSE",
             "LOGIN_INVENTORY_RESPONSE",
             "TRAFFIC_STATS_RESPONSE",
+            "CONNECTIONS_RESPONSE",
+            "HTTP_EVENTS_RESPONSE",
         ],
         strict=True,
     )
@@ -59,6 +63,10 @@ class QueryParams(Strict):
     search: str = Field(default="", max_length=200)
     page: int = Field(default=1, strict=True, ge=1, le=100000)
     page_size: int = Field(default=50, strict=True, ge=1, le=200)
+    cursor: str | None = Field(default=None, min_length=1, max_length=2048)
+    stream: bool = Field(default=False, strict=True)
+    sample_count: int | None = Field(default=None, strict=True, ge=1, le=20)
+    interval_ms: int | None = Field(default=None, strict=True, ge=1000, le=5000)
     start: datetime | None = None
     end: datetime | None = None
     sort: Literal["asc", "desc"] = "desc"
@@ -71,6 +79,8 @@ class Query(Strict):
         "HISTORY_QUERY",
         "LOGIN_INVENTORY_QUERY",
         "TRAFFIC_STATS_REQUEST",
+        "CONNECTIONS_QUERY",
+        "HTTP_EVENTS_QUERY",
     ]
     params: QueryParams = Field(default_factory=QueryParams)
 
