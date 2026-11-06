@@ -2472,3 +2472,301 @@ footer {
     top: 78px;
   }
 }
+
+/* Compact workspace: quiet surfaces, clear controls, data first. */
+:root {
+  --ink: #202834;
+  --muted: #697383;
+  --line: #e1e5eb;
+  --accent: #2861d6;
+  --navy: #f8f9fb;
+  background: #f6f7f9;
+}
+.app-sidebar {
+  background: #fff;
+  color: var(--ink);
+  border-right: 1px solid var(--line);
+  padding-top: 24px;
+}
+.app-sidebar .brand {
+  color: var(--ink);
+  margin-bottom: 32px;
+}
+.brand-lockup small {
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+.brand-mark {
+  background: #edf2ff;
+  color: #2861d6;
+  border-radius: 8px;
+}
+.app-sidebar nav button {
+  color: #566171;
+  border-radius: 6px;
+}
+.app-sidebar nav button:hover {
+  color: #244f9f;
+  background: #f3f6fb;
+}
+.app-sidebar nav button.active {
+  color: #2456b7;
+  background: #edf3ff;
+  box-shadow: none;
+}
+.app-sidebar nav button.active::before,
+.setup-journey::before {
+  display: none;
+}
+.app-sidebar > button.secondary {
+  margin-top: auto;
+  background: #fff;
+  color: #566171;
+  border-color: var(--line);
+}
+.workspace-content {
+  animation: none;
+}
+.workspace-topbar {
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.workspace-topbar h1 {
+  font-size: 25px;
+  letter-spacing: -0.6px;
+}
+.workspace-topbar p {
+  color: var(--muted);
+}
+.user-chip {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.user-chip > span {
+  color: #45628e;
+  background: #eaf0fa;
+  border-radius: 6px;
+}
+.panel,
+.device-card,
+.release,
+.download-card {
+  border-radius: 9px;
+  box-shadow: none;
+  border-color: var(--line);
+}
+.device-card:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #b5c6df;
+}
+.device-card.chosen {
+  box-shadow: none;
+  border-color: #8faee2;
+}
+.device-icon {
+  background: #f0f3f8;
+  color: #567099;
+  border-radius: 8px;
+}
+button,
+.button-link {
+  border-radius: 6px;
+  box-shadow: none;
+  transition: background-color 0.12s;
+}
+button.secondary {
+  border-color: var(--line);
+}
+.stats {
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  margin-bottom: 24px;
+}
+.stats article {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 14px 20px;
+  box-shadow: none;
+}
+.stats article + article {
+  border-left: 1px solid var(--line);
+}
+.stats strong {
+  font-size: 25px;
+  color: var(--ink);
+}
+.setup-journey {
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: none;
+}
+.journey-heading {
+  margin-bottom: 16px;
+}
+.journey-heading h2 {
+  font-size: 18px;
+  color: var(--ink);
+  letter-spacing: -0.3px;
+}
+.journey-heading p:last-child {
+  color: var(--muted);
+}
+.journey-current {
+  color: #526579;
+  font-size: 25px;
+  letter-spacing: -0.5px;
+}
+.journey-current span {
+  color: var(--muted);
+}
+.journey-step {
+  background: #fafbfc;
+  border-color: var(--line);
+  color: #566171;
+  border-radius: 6px;
+  padding: 12px;
+}
+.journey-step:hover:not(:disabled) {
+  background: #f0f4fa;
+}
+.journey-step.current {
+  color: #2456b7;
+  background: #edf3ff;
+  border-color: #b7ccee;
+}
+.journey-step .step-number {
+  background: #e9edf3;
+  color: #657184;
+  border-color: transparent;
+}
+.journey-step.current .step-number {
+  background: #2861d6;
+  color: #fff;
+}
+.step-copy strong {
+  color: inherit;
+}
+.step-copy small {
+  color: var(--muted);
+}
+.journey-step > svg {
+  display: none;
+}
+.browser-group {
+  border-color: var(--line);
+}
+.browser[aria-expanded="true"] {
+  background: #f0f4fc;
+  color: #2456b7;
+}
+.profile.active,
+.profiles button.active {
+  background: #edf3ff;
+  color: #2456b7;
+  box-shadow: none;
+}
+.tabs button {
+  border-radius: 0;
+}
+.auth-story {
+  background: #f0f3f8;
+  color: var(--ink);
+  border-right: 1px solid var(--line);
+}
+.auth-story .brand-lockup,
+.auth-story-copy h1 {
+  color: var(--ink);
+}
+.auth-story-copy p,
+.auth-story-copy .eyebrow,
+.auth-trust p,
+.auth-trust small {
+  color: var(--muted);
+}
+.auth-story-copy h1 {
+  font-size: clamp(30px, 3.2vw, 46px);
+}
+.auth-story-copy {
+  margin: auto 0;
+}
+.auth-trust {
+  border-color: var(--line);
+}
+@media (max-width: 760px) {
+  .app-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding-top: 12px;
+  }
+  .app-sidebar .brand {
+    margin-bottom: 12px;
+  }
+  .app-sidebar > button.secondary {
+    margin-top: 0;
+  }
+  .workspace-topbar h1 {
+    font-size: 22px;
+  }
+  .stats article {
+    padding: 12px;
+  }
+  .stats strong {
+    font-size: 22px;
+  }
+  .journey-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .app,
+  .app-sidebar,
+  .workspace-content {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .workspace-content > .section-head {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .section-actions {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .device-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .device-card {
+    min-width: 0;
+  }
+  .device-card .actions {
+    flex-wrap: wrap;
+  }
+  .device-card .actions button {
+    min-width: 0;
+  }
+  .app-sidebar nav {
+    min-width: 0;
+  }
+  .app-sidebar nav button {
+    min-width: 0;
+    white-space: normal;
+  }
+  .stats article {
+    min-width: 0;
+  }
+  .stats article > span {
+    white-space: normal;
+  }
+}

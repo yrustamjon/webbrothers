@@ -79,12 +79,7 @@ export function SetupJourney({
     <section className="setup-journey" aria-label="Qurilmani ulash bosqichlari">
       <div className="journey-heading">
         <div>
-          <p className="eyebrow">ULANISH YOʻLI</p>
-          <h2>
-            {connected
-              ? "Ish maydoningiz tayyor."
-              : "Birinchi ulanish, toʻrtta oddiy qadam."}
-          </h2>
+          <h2>{connected ? "Yangi qurilma ulash" : "Qurilmani ulash"}</h2>
           <p>
             {connected
               ? `${connected} ta qurilma ulangan. Profilni tanlang yoki yangi kompyuter qoʻshing.`
@@ -159,21 +154,6 @@ export function Auth({ onLogin }: { onLogin: () => void }) {
             Brauzerlaringiz, profillaringiz va kerakli maʼlumotlar — oʻzingiz
             boshqaradigan yagona ish maydonida.
           </p>
-        </div>
-        <div className="auth-topology" aria-hidden="true">
-          <div className="topology-orbit" />
-          <div className="topology-center">
-            <Icon name="shield" />
-          </div>
-          <span className="topology-node node-one">
-            <Icon name="devices" /> Qurilma
-          </span>
-          <span className="topology-node node-two">
-            <Icon name="account" /> Profil
-          </span>
-          <span className="topology-node node-three">
-            <Icon name="link" /> Xavfsiz ulanish
-          </span>
         </div>
         <div className="auth-trust">
           <Icon name="shield" />
@@ -1057,7 +1037,6 @@ export default function App() {
         >
           <Brand />
         </a>
-        <p className="nav-caption">BOSHQARUV</p>
         <nav aria-label="Asosiy menyu">
           <button
             className={page === "devices" || page === "device" ? "active" : ""}
@@ -1090,11 +1069,6 @@ export default function App() {
             <Icon name="account" /> Hisob
           </button>
         </nav>
-        <div className="sidebar-note">
-          <Icon name="shield" />
-          <strong>Ruxsat sizning qoʻlingizda</strong>
-          <p>Faqat tasdiqlangan qurilmalar. Faqat tanlangan maʼlumotlar.</p>
-        </div>
         <button
           className="secondary"
           onClick={() => logout.mutate()}
@@ -1106,9 +1080,6 @@ export default function App() {
       <main className="content workspace-content">
         <div className="workspace-topbar">
           <div>
-            <p className="eyebrow">
-              WEBBROTHERS / {page === "account" ? "HISOB" : "ISH MAYDONI"}
-            </p>
             <h1>{titles[page][0]}</h1>
             <p>{titles[page][1]}</p>
           </div>
@@ -1186,7 +1157,6 @@ export default function App() {
           <>
             <div className="section-head">
               <div>
-                <p className="eyebrow">QURILMALAR</p>
                 <h2>Kompyuterlaringiz</h2>
               </div>
               <div className="section-actions">
