@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"log"
 	"strings"
 )
 
