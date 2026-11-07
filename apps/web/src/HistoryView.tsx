@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { displayTime } from "./agentPage";
 import { safeURL } from "./model.mjs";
 import { type History } from "./api";
 import VirtualList from "./VirtualList";
@@ -162,11 +163,7 @@ export default function HistoryView({
                     </div>
                     <div>
                       <dt>Vaqt</dt>
-                      <dd>
-                        {row.visited_at
-                          ? new Date(row.visited_at).toLocaleString("uz-UZ")
-                          : "—"}
-                      </dd>
+                      <dd>{displayTime(row.visited_at)}</dd>
                     </div>
                     <div>
                       <dt>Tashrif</dt>
@@ -185,7 +182,9 @@ export default function HistoryView({
         position={controls.position}
         loading={page.loading || !controls.ready}
         hasMore={
-          page.data?.has_more ?? page.data?.items.length === controls.size
+          cursorMode
+            ? !!page.data?.has_more && !!page.data.next_cursor
+            : (page.data?.has_more ?? page.data?.items.length === controls.size)
         }
         previous={controls.previous}
         next={() => controls.next(page.data?.next_cursor)}

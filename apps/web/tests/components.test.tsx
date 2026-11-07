@@ -40,7 +40,7 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 describe("haqiqiy komponent oʻzaro taʼsirlari", () => {
-  it("yangi agentda ruxsatsiz Parollar va Trafik koʻrinadi, lekin soʻrov yubormaydi", async () => {
+  it("yangi agentda ruxsatsiz Loginlar va Trafik koʻrinadi, lekin soʻrov yubormaydi", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockImplementation((url, options) => {
@@ -70,7 +70,7 @@ describe("haqiqiy komponent oʻzaro taʼsirlari", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /Chrome/ }));
     await user.click(screen.getByRole("button", { name: "Shaxsiy" }));
-    for (const name of ["Parollar", "Trafik"]) {
+    for (const name of ["Loginlar", "Trafik"]) {
       await user.click(screen.getByRole("tab", { name }));
       expect(
         screen.getByText("Bu boʻlimga ruxsat berilmagan"),
@@ -458,7 +458,7 @@ describe("haqiqiy komponent oʻzaro taʼsirlari", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /Chrome/ }));
     await user.click(screen.getByRole("button", { name: "Shaxsiy" }));
-    await user.click(screen.getByRole("tab", { name: "Parollar" }));
+    await user.click(screen.getByRole("tab", { name: "Loginlar" }));
     expect(await screen.findByText("fixture-user")).toBeInTheDocument();
     expect(screen.getByText("fixture.test")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Trafik" }));
@@ -560,9 +560,9 @@ describe("haqiqiy komponent oʻzaro taʼsirlari", () => {
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Ish", exact: true }));
     await screen.findByText("Tanlangan filtrlarda tarix topilmadi.");
-    expect(screen.getByRole("tab", { name: "Parollar" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Loginlar" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Trafik" })).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "Parollar" }));
+    await user.click(screen.getByRole("tab", { name: "Loginlar" }));
     expect(
       screen.getByText("Loginlar uchun brauzer parol menejeridan foydalaning"),
     ).toBeInTheDocument();

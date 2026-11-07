@@ -77,8 +77,8 @@ export default function Inventory({
               controls.setDraft({ ...controls.draft, sort: e.target.value })
             }
           >
-            <option value="asc">A → Z</option>
-            <option value="desc">Z → A</option>
+            <option value="asc">Yozuv tartibi: boshidan</option>
+            <option value="desc">Yozuv tartibi: oxiridan</option>
           </select>
         </label>
         <button disabled={!modern}>Qidirish</button>
@@ -97,6 +97,11 @@ export default function Inventory({
         </p>
       )}
       {page.loading && <p role="status">Loginlar olinmoqda…</p>}
+      {page.data && (
+        <p className="muted">
+          {page.data.items.length} ta login · {browserName} · {profileName}
+        </p>
+      )}
       {page.data &&
         (!page.data.items.length ? (
           <p>Bu profilda saqlangan login topilmadi.</p>
@@ -128,7 +133,7 @@ export default function Inventory({
           onSize={controls.setSize}
           position={controls.position}
           loading={page.loading || !controls.ready}
-          hasMore={page.data?.has_more ?? false}
+          hasMore={!!page.data?.has_more && !!page.data.next_cursor}
           previous={controls.previous}
           next={() => controls.next(page.data?.next_cursor)}
         />

@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  renderHook,
+  act,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
+import { usePageControls } from "../src/PagedQuery";
 import VirtualList from "../src/VirtualList";
 import HistoryView from "../src/HistoryView";
 import TrafficView from "../src/TrafficView";
@@ -32,6 +40,17 @@ function mockStream(lines: unknown[]) {
   return fetcher;
 }
 describe("bounded frontend queries", () => {
+  it("refresh restarts from page one rather than reusing an expired cursor", () => {
+    const { result } = renderHook(() => usePageControls({ search: "" }));
+    act(() => result.current.next("old-source-cursor"));
+    expect(result.current.position).toBe(1);
+    expect(result.current.cursor).toBe("old-source-cursor");
+    act(() => result.current.reload());
+    expect(result.current.position).toBe(0);
+    expect(result.current.cursor).toBeUndefined();
+    expect(result.current.refresh).toBe(1);
+  });
+
   it("renders a bounded window for 100,000 synthetic history rows", () => {
     const items = Array.from({ length: 100000 }, (_, i) => i);
     render(

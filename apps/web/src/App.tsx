@@ -481,7 +481,7 @@ export function Explorer({
         : scope === "traffic.aggregate" && device.operating_system === "linux");
   const tabs = [
     ["history", "Tarix"],
-    ["inventory", "Parollar"],
+    ["inventory", "Loginlar"],
     ["traffic", "Trafik"],
   ];
   const activeTab = tab;

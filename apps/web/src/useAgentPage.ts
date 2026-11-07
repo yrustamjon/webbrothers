@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { queryAgent } from "./api";
 import { unwrap } from "./model.mjs";
 import { streamAgent } from "./stream";
+import { decodeAgentPage } from "./agentPage";
 export type AgentPage<T> = {
   items: T[];
   page_size?: number;
@@ -40,7 +41,11 @@ export function useAgentPage<T>(
             abort.signal,
             (frame) => {
               if (!active || abort.signal.aborted) return;
-              const page = frame.payload!;
+              const page = decodeAgentPage(
+                frame.payload,
+                type,
+                100,
+              ) as AgentPage<T>;
               if (
                 !Array.isArray(page.items) ||
                 items.length + page.items.length > 100
@@ -51,8 +56,12 @@ export function useAgentPage<T>(
             },
           );
         } else {
-          const page = unwrap(
-            await queryAgent(device, type, JSON.parse(key), abort.signal),
+          const page = decodeAgentPage(
+            unwrap(
+              await queryAgent(device, type, JSON.parse(key), abort.signal),
+            ),
+            type,
+            200,
           ) as AgentPage<T>;
           if (!Array.isArray(page.items) || page.items.length > 200)
             throw new Error("Sahifa chegarasi buzildi.");
@@ -61,12 +70,14 @@ export function useAgentPage<T>(
       };
       void run()
         .catch((reason: unknown) => {
-          if (active && !abort.signal.aborted)
+          if (active && !abort.signal.aborted) {
+            setData(undefined);
             setError(
               reason instanceof Error
                 ? reason
                 : new Error("Soʻrov bajarilmadi."),
             );
+          }
         })
         .finally(() => {
           if (active) setLoading(false);

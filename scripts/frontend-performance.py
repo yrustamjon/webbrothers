@@ -187,7 +187,7 @@ def main():
             # Wait for debounce and the new stream rather than the old completed page.
             cdp.wait("!document.querySelector('.detail [role=status]')")
             print('Search completed', flush=True)
-            result['login_first_chunk_ms'] = cdp.measure(click('Parollar'), "!!document.querySelector('.inventory-record')")
+            result['login_first_chunk_ms'] = cdp.measure(click('Loginlar'), "!!document.querySelector('.inventory-record')")
             cdp.wait("!document.querySelector('.detail [role=status]')")
             result['login_dom_rows'] = cdp.js("document.querySelectorAll('.virtual-row').length")
             # Three concurrent abortable streams simulate dashboard clients sharing a relay.

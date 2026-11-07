@@ -33,7 +33,10 @@ export function usePageControls(filters: Record<string, string>) {
     refresh,
     ready: draftKey === JSON.stringify(applied),
     apply: () => apply(draft),
-    reload: () => setRefresh((n) => n + 1),
+    reload: () => {
+      apply(draft);
+      setRefresh((n) => n + 1);
+    },
     setSize: (value: number) => {
       setSizeValue(value);
       apply(draft);
