@@ -68,6 +68,7 @@ def main():
     parser.add_argument('--dist', type=Path, default=Path('apps/web/dist'))
     parser.add_argument('--output', type=Path, default=Path('docs/frontend-performance-results.json'))
     parser.add_argument('--runs', type=int, default=3)
+    parser.add_argument('--browser-architecture', choices=['native_arm64','rosetta_x86_64','unknown'], default='unknown')
     args = parser.parse_args()
     root = args.dist.resolve()
     assert (root / 'index.html').is_file(), 'Run npm --prefix apps/web run build first'
@@ -164,6 +165,7 @@ def main():
         cdp.call('Runtime.enable')
         cdp.call('Page.bringToFront')
         cdp.call('Emulation.setDeviceMetricsOverride', dict(width=1440, height=1000, deviceScaleFactor=1, mobile=False))
+        cdp.blank_baseline = cdp.js("(async()=>{const values=[];for(let i=0;i<10;i++){const start=performance.now();await new Promise(resolve=>setTimeout(resolve,20));values.push(performance.now()-start);}return values;})()")
         cdp.call('Page.addScriptToEvaluateOnNewDocument', dict(source="new MutationObserver((_,observer)=>{if(document.body?.innerText.includes('Synthetic Device')){window.__initialReady=performance.now();observer.disconnect();}}).observe(document,{childList:true,subtree:true});"))
         cdp.call('Page.navigate', dict(url=url))
         return cdp, target
@@ -173,7 +175,7 @@ def main():
             print('Synthetic run', run_index+1, flush=True)
             cdp, target = page()
             cdp.wait("document.body?.innerText.includes('Synthetic Device')")
-            result = dict(initial_dashboard_ms=cdp.js('window.__initialReady'))
+            result = dict(initial_dashboard_ms=cdp.js('window.__initialReady'), blank_20ms_timer_baseline_ms=cdp.blank_baseline)
             result['browser_list_ms'] = cdp.measure(click('Profil va maʼlumotlar'), "Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('Google Chrome'))")
             result['browser_expansion_ms'] = cdp.measure(click('Google Chrome'), "Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('Synthetic One'))")
             result['profile_first_chunk_ms'] = cdp.measure(click('Synthetic One'), "!!document.querySelector('.history-record')")
@@ -190,11 +192,12 @@ def main():
             result['login_dom_rows'] = cdp.js("document.querySelectorAll('.virtual-row').length")
             # Three concurrent abortable streams simulate dashboard clients sharing a relay.
             result['concurrent_abort'] = cdp.js("(async()=>{const start=performance.now();const controllers=Array.from({length:3},()=>new AbortController());const jobs=controllers.map(async(c)=>{try{const r=await fetch('/api/v1/devices/synthetic/stream',{method:'POST',signal:c.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'HISTORY_QUERY',params:{page_size:100}})});await r.text();return 'completed';}catch(e){return e.name;}});setTimeout(()=>controllers.forEach(c=>c.abort()),40);const outcomes=await Promise.all(jobs);return {elapsed_ms:performance.now()-start,outcomes};})()")
+            result['resource_timings'] = cdp.js("performance.getEntriesByType('resource').map(x=>({path:new URL(x.name).pathname,duration_ms:x.duration,transfer_bytes:x.transferSize})).filter(x=>x.path.startsWith('/api/')||x.path.endsWith('.js'))")
             runs.append(result)
             print('Run complete', result, flush=True)
             browser.call('Target.closeTarget', dict(targetId=target))
-        numeric = {key: dict(p50=round(statistics.median([r[key] for r in runs]), 3), p95=round(sorted(r[key] for r in runs)[max(0, int(len(runs)*.95+.999)-1)], 3)) for key in runs[0] if key.endswith('_ms') or key.startswith('search_ms')}
-        output = dict(command='python scripts/frontend-performance.py --dist apps/web/dist --cdp '+args.cdp, scope='frontend_only_synthetic_loopback_mock_not_full_stack_or_agent', browser=endpoint.get('Browser'), platform=platform.platform(), runs=args.runs, source_records=dict(history=100000, login_metadata=10000, profiles=3), stream_fixture=dict(chunks=5, interval_ms=25), measurements_ms=numeric, raw_runs=runs, fixture_totals=stats, limitations=['HTTP fixture only; TLS, Go agent, SQL query performance, real OS permissions and real browser data are excluded.', 'Dedicated Chrome x64 under Rosetta on ARM macOS; Chrome reported CVDisplayLink errors. Results describe this environment only.', 'Renderer MutationObserver readiness timestamps exclude CDP polling roundtrip overhead. Fresh isolated browser context per suite; production cache may be warm on later runs.', 'Synthetic source cardinality is paginated at fixture; dashboard does not receive whole source. VirtualList100k direct DOM bound is also covered by unit test.', 'No real user browser profile, password, history or credential storage is accessed.'])
+        numeric = {key: dict(p50=round(statistics.median([r[key] for r in runs]), 3), p95=round(sorted(r[key] for r in runs)[max(0, int(len(runs)*.95+.999)-1)], 3)) for key in runs[0] if isinstance(runs[0][key], (int, float)) and (key.endswith('_ms') or key.startswith('search_ms'))}
+        output = dict(command='python scripts/frontend-performance.py --dist apps/web/dist --cdp '+args.cdp, scope='frontend_only_synthetic_loopback_mock_not_full_stack_or_agent', statistical_note='p95 is nearest-rank maximum for 3 default runs; this small sample does not establish a production latency percentile.', measurement_method='Renderer MutationObserver DOM readiness, not a paint metric; excludes subsequent CDP polling roundtrip.', browser=endpoint.get('Browser'), browser_architecture=args.browser_architecture, platform=platform.platform(), runs=args.runs, source_records=dict(history=100000, login_metadata=10000, profiles=3), stream_fixture=dict(chunks=5, interval_ms=25), measurements_ms=numeric, raw_runs=runs, fixture_totals=stats, limitations=['HTTP fixture only; TLS, Go agent, SQL query performance, real OS permissions and real browser data are excluded.', 'Browser architecture is explicitly supplied by the operator; compare with blank scheduling baseline and resource timings before attributing latency. Results describe this environment only.', 'Renderer MutationObserver readiness timestamps exclude CDP polling roundtrip overhead. Fresh isolated browser context per suite; production cache may be warm on later runs.', 'Synthetic source cardinality is paginated at fixture; dashboard does not receive whole source. VirtualList100k direct DOM bound is also covered by unit test.', 'No real user browser profile, password, history or credential storage is accessed.'])
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(output, indent=2)+'\n')
         print(json.dumps(output, indent=2))

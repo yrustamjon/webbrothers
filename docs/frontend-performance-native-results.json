@@ -1,0 +1,432 @@
+{
+  "command": "python scripts/frontend-performance.py --dist apps/web/dist --output docs/frontend-performance-native-results.json --cdp http://127.0.0.1:19224 --browser-architecture native_arm64 --runs 3",
+  "scope": "frontend_only_synthetic_loopback_mock_not_full_stack_or_agent",
+  "statistical_note": "p95 is nearest-rank maximum for 3 default runs; this small sample does not establish a production latency percentile.",
+  "measurement_method": "Renderer MutationObserver DOM readiness, not a paint metric; excludes subsequent CDP polling roundtrip.",
+  "browser": "Chrome/156.0.8078.80",
+  "browser_architecture": "native_arm64",
+  "platform": "macOS-15.3-arm64-i386-64bit-Mach-O",
+  "runs": 3,
+  "source_records": {
+    "history": 100000,
+    "login_metadata": 10000,
+    "profiles": 3
+  },
+  "stream_fixture": {
+    "chunks": 5,
+    "interval_ms": 25
+  },
+  "measurements_ms": {
+    "initial_dashboard_ms": {
+      "p50": 47.9,
+      "p95": 82.6
+    },
+    "browser_list_ms": {
+      "p50": 6,
+      "p95": 12.2
+    },
+    "browser_expansion_ms": {
+      "p50": 1,
+      "p95": 1
+    },
+    "profile_first_chunk_ms": {
+      "p50": 315.2,
+      "p95": 327.8
+    },
+    "search_ms_including_250ms_debounce": {
+      "p50": 397.1,
+      "p95": 404.1
+    },
+    "login_first_chunk_ms": {
+      "p50": 317.1,
+      "p95": 335.9
+    }
+  },
+  "raw_runs": [
+    {
+      "initial_dashboard_ms": 82.59999999403954,
+      "blank_20ms_timer_baseline_ms": [
+        20.099999994039536,
+        21.099999994039536,
+        21.100000023841858,
+        21,
+        21.099999994039536,
+        20.19999998807907,
+        20.900000005960464,
+        20.80000001192093,
+        21.69999998807907,
+        20.80000001192093
+      ],
+      "browser_list_ms": 12.200000017881393,
+      "browser_expansion_ms": 1,
+      "profile_first_chunk_ms": 327.80000001192093,
+      "history_dom_rows": 10,
+      "history_page_rows": 50,
+      "search_ms_including_250ms_debounce": 396.5,
+      "login_first_chunk_ms": 335.90000000596046,
+      "login_dom_rows": 10,
+      "concurrent_abort": {
+        "elapsed_ms": 42.30000001192093,
+        "outcomes": [
+          "AbortError",
+          "AbortError",
+          "AbortError"
+        ]
+      },
+      "resource_timings": [
+        {
+          "path": "/assets/index-Dpsw1VXA.js",
+          "duration_ms": 5.600000023841858,
+          "transfer_bytes": 263249
+        },
+        {
+          "path": "/api/v1/auth/me",
+          "duration_ms": 1.300000011920929,
+          "transfer_bytes": 335
+        },
+        {
+          "path": "/api/v1/devices",
+          "duration_ms": 1.0999999940395355,
+          "transfer_bytes": 700
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 1.0999999940395355,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/query",
+          "duration_ms": 0.7999999821186066,
+          "transfer_bytes": 819
+        },
+        {
+          "path": "/assets/HistoryView-BrMJa5Z_.js",
+          "duration_ms": 2,
+          "transfer_bytes": 4139
+        },
+        {
+          "path": "/assets/PagedQuery-BSPBWo9M.js",
+          "duration_ms": 2.100000023841858,
+          "transfer_bytes": 4988
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 1.2999999821186066,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 131.2999999821186,
+          "transfer_bytes": 8764
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 1.699999988079071,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 138.90000000596046,
+          "transfer_bytes": 8764
+        },
+        {
+          "path": "/assets/Inventory-BAxyHGli.js",
+          "duration_ms": 1.699999988079071,
+          "transfer_bytes": 2844
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 1,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 142.90000000596046,
+          "transfer_bytes": 5824
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 42.400000005960464,
+          "transfer_bytes": 300
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 42.30000001192093,
+          "transfer_bytes": 300
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 42.400000005960464,
+          "transfer_bytes": 300
+        }
+      ]
+    },
+    {
+      "initial_dashboard_ms": 47.900000005960464,
+      "blank_20ms_timer_baseline_ms": [
+        21.299999982118607,
+        21,
+        20.899999976158142,
+        21.100000023841858,
+        21.19999998807907,
+        21,
+        21.099999994039536,
+        21,
+        20.80000001192093,
+        20.80000001192093
+      ],
+      "browser_list_ms": 6,
+      "browser_expansion_ms": 0.9000000059604645,
+      "profile_first_chunk_ms": 314.19999998807907,
+      "history_dom_rows": 10,
+      "history_page_rows": 50,
+      "search_ms_including_250ms_debounce": 404.10000002384186,
+      "login_first_chunk_ms": 317.09999999403954,
+      "login_dom_rows": 10,
+      "concurrent_abort": {
+        "elapsed_ms": 41.79999998211861,
+        "outcomes": [
+          "AbortError",
+          "AbortError",
+          "AbortError"
+        ]
+      },
+      "resource_timings": [
+        {
+          "path": "/assets/index-Dpsw1VXA.js",
+          "duration_ms": 2.699999988079071,
+          "transfer_bytes": 263249
+        },
+        {
+          "path": "/api/v1/auth/me",
+          "duration_ms": 1,
+          "transfer_bytes": 335
+        },
+        {
+          "path": "/api/v1/devices",
+          "duration_ms": 1.0999999940395355,
+          "transfer_bytes": 700
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 0.9000000059604645,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/query",
+          "duration_ms": 0.7000000178813934,
+          "transfer_bytes": 819
+        },
+        {
+          "path": "/assets/HistoryView-BrMJa5Z_.js",
+          "duration_ms": 2.300000011920929,
+          "transfer_bytes": 4139
+        },
+        {
+          "path": "/assets/PagedQuery-BSPBWo9M.js",
+          "duration_ms": 2.5,
+          "transfer_bytes": 4988
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 0.9000000059604645,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 134.5,
+          "transfer_bytes": 8764
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 2.5999999940395355,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 146.2000000178814,
+          "transfer_bytes": 8764
+        },
+        {
+          "path": "/assets/Inventory-BAxyHGli.js",
+          "duration_ms": 1.899999976158142,
+          "transfer_bytes": 2844
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 2,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 140.2000000178814,
+          "transfer_bytes": 5824
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 41.80000001192093,
+          "transfer_bytes": 300
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 41.70000001788139,
+          "transfer_bytes": 300
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 41.69999998807907,
+          "transfer_bytes": 300
+        }
+      ]
+    },
+    {
+      "initial_dashboard_ms": 44.099999994039536,
+      "blank_20ms_timer_baseline_ms": [
+        21.799999982118607,
+        20.100000023841858,
+        21.099999994039536,
+        21,
+        20.599999994039536,
+        21,
+        21.099999994039536,
+        21,
+        20.30000001192093,
+        21
+      ],
+      "browser_list_ms": 5.9000000059604645,
+      "browser_expansion_ms": 1,
+      "profile_first_chunk_ms": 315.19999998807907,
+      "history_dom_rows": 10,
+      "history_page_rows": 50,
+      "search_ms_including_250ms_debounce": 397.09999999403954,
+      "login_first_chunk_ms": 315.2999999821186,
+      "login_dom_rows": 10,
+      "concurrent_abort": {
+        "elapsed_ms": 40.900000005960464,
+        "outcomes": [
+          "AbortError",
+          "AbortError",
+          "AbortError"
+        ]
+      },
+      "resource_timings": [
+        {
+          "path": "/assets/index-Dpsw1VXA.js",
+          "duration_ms": 2,
+          "transfer_bytes": 263249
+        },
+        {
+          "path": "/api/v1/auth/me",
+          "duration_ms": 0.9000000059604645,
+          "transfer_bytes": 335
+        },
+        {
+          "path": "/api/v1/devices",
+          "duration_ms": 1.199999988079071,
+          "transfer_bytes": 700
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 0.9000000059604645,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/query",
+          "duration_ms": 0.5999999940395355,
+          "transfer_bytes": 819
+        },
+        {
+          "path": "/assets/HistoryView-BrMJa5Z_.js",
+          "duration_ms": 1.9000000059604645,
+          "transfer_bytes": 4139
+        },
+        {
+          "path": "/assets/PagedQuery-BSPBWo9M.js",
+          "duration_ms": 1.7000000178813934,
+          "transfer_bytes": 4988
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 1.5999999940395355,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 136.7999999821186,
+          "transfer_bytes": 8764
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 2.4000000059604645,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 140.19999998807907,
+          "transfer_bytes": 8764
+        },
+        {
+          "path": "/assets/Inventory-BAxyHGli.js",
+          "duration_ms": 1.800000011920929,
+          "transfer_bytes": 2844
+        },
+        {
+          "path": "/api/v1/auth/csrf",
+          "duration_ms": 2.0999999940395355,
+          "transfer_bytes": 327
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 134,
+          "transfer_bytes": 5824
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 40.79999998211861,
+          "transfer_bytes": 300
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 40.80000001192093,
+          "transfer_bytes": 300
+        },
+        {
+          "path": "/api/v1/devices/synthetic/stream",
+          "duration_ms": 40.80000001192093,
+          "transfer_bytes": 300
+        }
+      ]
+    }
+  ],
+  "fixture_totals": {
+    "requests": 21,
+    "browser_requests": 3,
+    "history_requests": 15,
+    "login_requests": 3,
+    "rows_sent": 1350,
+    "stream_frames": 72,
+    "payload_bytes": 154899,
+    "disconnected": 9,
+    "active": 0,
+    "max_concurrent": 3
+  },
+  "limitations": [
+    "HTTP fixture only; TLS, Go agent, SQL query performance, real OS permissions and real browser data are excluded.",
+    "Browser architecture is explicitly supplied by the operator; compare with blank scheduling baseline and resource timings before attributing latency. Results describe this environment only.",
+    "Renderer MutationObserver readiness timestamps exclude CDP polling roundtrip overhead. Fresh isolated browser context per suite; production cache may be warm on later runs.",
+    "Synthetic source cardinality is paginated at fixture; dashboard does not receive whole source. VirtualList100k direct DOM bound is also covered by unit test.",
+    "No real user browser profile, password, history or credential storage is accessed."
+  ],
+  "chrome_launch_command": "arch -arm64 '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --remote-debugging-port=19224 --user-data-dir=/private/tmp/webbrothers-frontend-benchmark-native-arm --no-first-run --no-default-browser-check --disable-background-timer-throttling --disable-renderer-backgrounding about:blank",
+  "architecture_evidence": {
+    "chrome_lipo_archs": "x86_64 arm64",
+    "node_process_arch": "arm64",
+    "shell_uname_m": "x86_64",
+    "explicit_chrome_launcher": "arch -arm64"
+  },
+  "blank_20ms_timer_summary_ms": {
+    "count": 30,
+    "p50": 21.0,
+    "p95": 21.7
+  }
+}
