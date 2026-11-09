@@ -1995,3 +1995,312 @@
   align-items: center;
   gap: 8px;
 }
+
+/* ── Password Manager additions ── */
+
+.login-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.login-toolbar .login-filters {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.add-login-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  background: #4c32ee !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(76, 50, 238, 0.3) !important;
+  transition: background 0.15s;
+}
+
+.add-login-btn:hover {
+  background: #3d27cc !important;
+}
+
+/* ── Login columns with action col ── */
+.login-columns.has-actions,
+.login-table-row.has-actions {
+  grid-template-columns:
+    minmax(170px, 1.4fr) minmax(190px, 1.5fr) minmax(150px, 1.1fr)
+    minmax(140px, 1fr) minmax(100px, 0.8fr) 56px;
+}
+
+.login-action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-login-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: #98a2b3 !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: none !important;
+}
+
+.delete-login-btn:hover:not(:disabled) {
+  background: #fff1f3 !important;
+  border-color: #fda4af !important;
+  color: #e11d48 !important;
+}
+
+.delete-login-btn.confirming {
+  background: #ecfdf3 !important;
+  border-color: #abefc6 !important;
+  color: #027a48 !important;
+}
+
+.delete-login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Copy button ── */
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: #667085 !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: none !important;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  background: #f2f4f7 !important;
+  color: #344054 !important;
+  border-color: #d0d5dd !important;
+}
+
+/* ── Reveal error dot ── */
+.reveal-error {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fef2f2;
+  border: 1px solid #fda4af;
+  color: #e11d48;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: help;
+}
+
+/* ── Spin animation ── */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin-icon {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ── Add Login Modal ── */
+.login-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 20px;
+}
+
+.login-modal-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow:
+    0 20px 60px rgba(16, 24, 40, 0.18),
+    0 4px 12px rgba(16, 24, 40, 0.08);
+  width: 100%;
+  max-width: 480px;
+  padding: 28px 32px;
+  position: relative;
+}
+
+.login-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.login-modal-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #101828;
+  margin: 0;
+}
+
+.modal-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px !important;
+  background: transparent !important;
+  border: none !important;
+  color: #667085 !important;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+.modal-close-btn:hover {
+  background: #f2f4f7 !important;
+  color: #344054 !important;
+}
+
+.login-modal-desc {
+  font-size: 13px;
+  color: #667085;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.login-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #344054;
+}
+
+.modal-field input {
+  padding: 10px 13px !important;
+  border: 1px solid #d0d5dd !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  color: #101828 !important;
+  background: #fff !important;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modal-field input:focus {
+  border-color: #5145ed !important;
+  outline: 2px solid rgba(81, 69, 237, 0.2);
+}
+
+.modal-pw-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.modal-pw-wrap input {
+  padding-right: 44px !important;
+  width: 100%;
+}
+
+.modal-eye {
+  position: absolute;
+  right: 10px;
+  color: #667085 !important;
+}
+
+.modal-error {
+  font-size: 13px;
+  color: #b91c1c;
+  background: #fff1f2;
+  border: 1px solid #fda4af;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0;
+}
+
+.modal-success {
+  font-size: 13px;
+  color: #027a48;
+  background: #ecfdf3;
+  border: 1px solid #abefc6;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.modal-cancel-btn {
+  padding: 10px 18px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  background: #fff !important;
+  border: 1px solid #d0d5dd !important;
+  color: #344054 !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+}
+
+.modal-cancel-btn:hover {
+  background: #f9fafb !important;
+}
+
+.modal-save-btn {
+  padding: 10px 20px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  background: #4c32ee !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.modal-save-btn:hover:not(:disabled) {
+  background: #3d27cc !important;
+}
+
+.modal-save-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
