@@ -64,7 +64,12 @@ export default function HistoryView({
     controls.setDraft({ ...controls.draft, [key]: value });
   return (
     <section>
-      <h2>Koʻrish tarixi</h2>
+      <div className="data-heading">
+        <div>
+          <h2>Koʻrish tarixi</h2>
+          <p>Tanlangan profilning brauzer tarixi</p>
+        </div>
+      </div>
       <form
         className="filters"
         onSubmit={(event) => {
@@ -118,6 +123,12 @@ export default function HistoryView({
       {(!controls.ready || page.loading) && (
         <p role="status">Agentdan olinmoqda…</p>
       )}
+      <div className="history-columns" aria-hidden="true">
+        <span>Sahifa</span>
+        <span>Domen</span>
+        <span>Oxirgi tashrif</span>
+        <span>Tashriflar</span>
+      </div>
       {page.data && (
         <>
           <p className="muted">
@@ -131,7 +142,7 @@ export default function HistoryView({
             <VirtualList
               key={`${profile}-${controls.position}-${controls.size}`}
               items={page.data.items}
-              rowHeight={mobile ? 180 : 112}
+              rowHeight={mobile ? 180 : 96}
               label="Koʻrish tarixi yozuvlari"
               renderItem={(row) => (
                 <article className="history-record">
@@ -139,6 +150,7 @@ export default function HistoryView({
                     {safeURL(row.url) ? (
                       <a
                         className="history-title"
+                        title={row.url}
                         href={safeURL(row.url)!}
                         target="_blank"
                         rel="noreferrer noopener"
