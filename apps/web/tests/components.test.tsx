@@ -160,7 +160,7 @@ describe("haqiqiy komponent oʻzaro taʼsirlari", () => {
       return response({ items: [] });
     });
     mount(<App />);
-    await screen.findByText("Hali qurilma ulanmagan");
+    await screen.findByText("Hali faol qurilma yoʻq");
     const user = userEvent.setup();
     const journey = screen.getByRole("region", {
       name: "Qurilmani ulash bosqichlari",
@@ -211,25 +211,25 @@ describe("haqiqiy komponent oʻzaro taʼsirlari", () => {
     expect(
       screen.queryByRole("region", { name: "Qurilmani ulash bosqichlari" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Jami qurilmalar")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Profil va maʼlumotlar/ }),
-    ).toBeEnabled();
+      screen.getByRole("list", { name: "Faol qurilmalar" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ochish/ })).toBeEnabled();
     expect(
-      screen.queryByText("Hali qurilma ulanmagan"),
+      screen.queryByText("Hali faol qurilma yoʻq"),
     ).not.toBeInTheDocument();
     const user = userEvent.setup();
-    await user.click(
-      screen.getByRole("button", { name: /Profil va maʼlumotlar/ }),
-    );
+    await user.click(screen.getByRole("button", { name: /Ochish/ }));
     await screen.findByText("Qoʻllab-quvvatlanadigan brauzer topilmadi.");
     expect(
       screen.getByRole("heading", { name: "Qurilma profillari" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/macOS · amd64/)).toBeInTheDocument();
-    expect(screen.queryByText("Jami qurilmalar")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "Kompyuterlaringiz" }),
+      screen.queryByRole("list", { name: "Faol qurilmalar" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Qurilmalar" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("region", { name: "Qurilmani ulash bosqichlari" }),
@@ -241,7 +241,7 @@ describe("haqiqiy komponent oʻzaro taʼsirlari", () => {
       screen.getByRole("button", { name: /Qurilmalarga qaytish/ }),
     );
     expect(
-      screen.getByRole("heading", { name: "Kompyuterlaringiz" }),
+      screen.getByRole("heading", { name: "Qurilmalar" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("navigation", { name: "Brauzer va profillar" }),

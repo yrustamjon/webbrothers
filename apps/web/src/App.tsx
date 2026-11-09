@@ -4,6 +4,7 @@ import { api, APIError, queryAgent, type Device, type Browser } from "./api";
 import { useSelection } from "./store";
 import Downloads from "./Downloads";
 import DeviceSettings from "./DeviceSettings";
+import DeviceOverview from "./DeviceOverview";
 import { scopes, toggleBrowser, unwrap } from "./model.mjs";
 import LocalPasswords from "./LocalPasswords";
 const HistoryView = lazy(() => import("./HistoryView"));
@@ -539,7 +540,10 @@ export function Explorer({
           )}
           <div className="explorer">
             <nav aria-label="Brauzer va profillar">
-              <div className="tree-brand">WebBrothers</div>
+              <div className="tree-brand">
+                <div className="tree-brand-title">WebBrothers</div>
+                <div className="tree-brand-caption">LOGIN INVENTORY</div>
+              </div>
               <div className="tree-heading">
                 <strong>Qurilmalar</strong>
                 <span className="tree-device-count">
@@ -712,25 +716,52 @@ export function Explorer({
               {selectedProfile && selectedBrowser ? (
                 <>
                   <div className="profile-breadcrumb">
-                    <span>{device.display_name}</span>
-                    <span>/</span>
-                    <span>{selectedBrowser.name}</span>
-                    <span>/</span>
-                    <strong>{selectedProfile.name}</strong>
+                    <div className="breadcrumb-path">
+                      <span className="breadcrumb-icon" aria-hidden="true">
+                        💻
+                      </span>
+                      <span>{device.display_name}</span>
+                      <span className="breadcrumb-separator" aria-hidden="true">
+                        /
+                      </span>
+                      <span
+                        className="breadcrumb-browser-dot"
+                        aria-hidden="true"
+                      >
+                        🟢
+                      </span>
+                      <span>{selectedBrowser.name.replace("Google ", "")}</span>
+                      <span className="breadcrumb-separator" aria-hidden="true">
+                        /
+                      </span>
+                      <span className="breadcrumb-icon" aria-hidden="true">
+                        👤
+                      </span>
+                      <strong>{selectedProfile.name}</strong>
+                    </div>
+                    <span className="breadcrumb-mockup-badge">
+                      DIZAYN NAMUNASI
+                    </span>
                   </div>
                   <div className="workspace-view-heading">
-                    <h1>
-                      {activeTab === "inventory"
-                        ? "Saqlangan loginlar"
-                        : activeTab === "traffic"
-                          ? "Trafik monitoringi"
-                          : "Brauzer tarixi"}
-                    </h1>
-                    <p>
-                      {selectedProfile.name}
+                    <div className="workspace-title-row">
+                      <h1>
+                        {activeTab === "inventory"
+                          ? "Saqlangan loginlar"
+                          : activeTab === "traffic"
+                            ? "Trafik monitoringi"
+                            : "Brauzer tarixi"}
+                      </h1>
                       <span className="agent-live-label">
                         <span className="live-dot" /> Agent ulangan
                       </span>
+                    </div>
+                    <p className="workspace-subtitle">
+                      {activeTab === "inventory"
+                        ? `${selectedBrowser.name.replace("Google ", "")} brauzeridagi saqlangan hisob yozuvlari roʻyxati. Parollar faqat koʻrish tugmasi orqali ochiladi.`
+                        : activeTab === "traffic"
+                          ? "Qurilma boʻyicha tarmoq tezligi va uzatilgan maʼlumotlar hajmi monitoringi."
+                          : `${selectedBrowser.name.replace("Google ", "")} brauzerida tashrif buyurilgan sahifalar va domenlar tarixi.`}
                     </p>
                   </div>
                   <div
@@ -1105,7 +1136,7 @@ export default function App() {
     setPage(step < 3 ? "downloads" : step === 3 ? "pairing" : "devices");
   };
   const titles: Record<string, [string, string]> = {
-    devices: ["Ish maydoni", "Qurilmalaringiz va brauzer profillari"],
+    devices: ["Qurilmalar", "Kompyuterlaringiz va ulanish holati"],
     device: [
       "Qurilma profillari",
       selected?.display_name ?? "Tanlangan qurilma",
@@ -1264,220 +1295,26 @@ export default function App() {
           </div>
         ) : (
           <>
-            <div className="section-head">
-              <div>
-                <h2>Kompyuterlaringiz</h2>
-              </div>
-              <div className="section-actions">
-                <button
-                  className="secondary"
-                  onClick={() => devices.refetch()}
-                  disabled={devices.isFetching}
-                >
-                  Yangilash
-                </button>
-                <button onClick={() => navigateStep(3)}>
-                  <Icon name="link" /> Qurilma qoʻshish
-                </button>
-              </div>
-            </div>
-            <div className="stats">
-              <article>
-                <span>
-                  <Icon name="devices" />
-                  Jami qurilmalar
-                </span>
-                <strong>{devices.data ? list.length : "—"}</strong>
-              </article>
-              <article>
-                <span>
-                  <span className="live-dot" />
-                  Tarmoqda
-                </span>
-                <strong>
-                  {devices.data
-                    ? list.filter((d) => d.status === "online").length
-                    : "—"}
-                </strong>
-              </article>
-              <article>
-                <span>
-                  <span className="offline-dot" />
-                  Tarmoqdan tashqarida
-                </span>
-                <strong>
-                  {devices.data
-                    ? list.filter((d) => d.status === "offline").length
-                    : "—"}
-                </strong>
-              </article>
-            </div>
             <ErrorBox error={devices.error} />
             <ErrorBox error={revoke.error} />
-            {devices.isPending && <p>Qurilmalar yuklanmoqda…</p>}
-            {devices.data && !list.length && (
-              <section className="panel empty device-empty">
-                <span className="empty-icon">
-                  <Icon name="devices" />
-                </span>
-                <h2>Hali qurilma ulanmagan</h2>
-                <p>
-                  Birinchi kompyuteringizni qoʻshing. Agentni oʻrnating, soʻng
-                  undagi ulash kodini tasdiqlang.
-                </p>
-                <div className="actions">
-                  <button onClick={() => navigateStep(1)}>
-                    Agentni yuklab olish <Icon name="arrow" />
-                  </button>
-                  <button className="secondary" onClick={() => navigateStep(3)}>
-                    Menda ulash kodi bor
-                  </button>
-                </div>
-              </section>
-            )}
-            {!!list.filter((d) => d.status === "revoked").length && (
-              <details className="archived-device-list">
-                <summary>
-                  Eski qurilmalar{" "}
-                  <span>
-                    {list.filter((d) => d.status === "revoked").length}
-                  </span>
-                </summary>
-                <p className="muted">
-                  Bu ulanishlar bekor qilingan. Qayta foydalanish uchun agentni
-                  yangi kod bilan ulang.
-                </p>
-                {list
-                  .filter((d) => d.status === "revoked")
-                  .map((d) => (
-                    <div className="archived-device-row" key={d.id}>
-                      <div>
-                        <strong>{d.display_name}</strong>
-                        <small>
-                          {platformName(d.operating_system)} · Bekor qilingan ·{" "}
-                          {time(d.last_seen_at)}
-                        </small>
-                      </div>
-                      <button
-                        className="danger"
-                        disabled={removeDevice.isPending}
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              `"${d.display_name}" qurilmasini roʻyxatdan oʻchirasizmi?`,
-                            )
-                          )
-                            removeDevice.mutate(d.id);
-                        }}
-                      >
-                        Oʻchirish
-                      </button>
-                    </div>
-                  ))}
-              </details>
-            )}
-            <div className="device-grid">
-              {list
-                .filter((d) => d.status !== "revoked")
-                .sort(
-                  (a, b) =>
-                    Number(b.status === "online") -
-                    Number(a.status === "online"),
-                )
-                .map((device) => (
-                  <article
-                    className={`device-card ${selection.device === device.id ? "chosen" : ""} status-${device.status}`}
-                    key={device.id}
-                  >
-                    <div className="section-head">
-                      <div className="device-title-group">
-                        <span
-                          className={`device-icon ${device.operating_system}`}
-                        >
-                          <Icon name="devices" />
-                        </span>
-                        <div className="device-title-info">
-                          <h2>{device.display_name}</h2>
-                          <p className="device-platform">
-                            <span className="os-tag">
-                              {platformName(device.operating_system)}
-                            </span>
-                            <span className="arch-tag">
-                              {" "}
-                              · {device.architecture}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-                      <span
-                        className={`status ${device.status === "online" ? "online" : ""}`}
-                      >
-                        {device.status === "online"
-                          ? "Tarmoqda"
-                          : device.status === "revoked"
-                            ? "Bekor qilingan"
-                            : "Tarmoqdan tashqarida"}
-                      </span>
-                    </div>
-                    <div className="device-meta-row">
-                      <small>
-                        Oxirgi ulanish:{" "}
-                        <strong>
-                          {device.status === "online" && !device.last_seen_at
-                            ? "Hozir tarmoqda"
-                            : time(device.last_seen_at)}
-                        </strong>
-                      </small>
-                    </div>
-                    <div className="actions">
-                      <button
-                        disabled={device.status === "revoked"}
-                        onClick={() => {
-                          selection.selectDevice(device.id);
-                          setPage("device");
-                        }}
-                      >
-                        {selection.device === device.id
-                          ? "Tanlangan qurilma"
-                          : "Profil va maʼlumotlar"}{" "}
-                        <Icon name="arrow" />
-                      </button>
-                      {device.status !== "revoked" && (
-                        <button
-                          className="secondary"
-                          disabled={revoke.isPending}
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                `"${device.display_name}" qurilmasining ruxsatini bekor qilasizmi? Agent qayta ulanish uchun yangi tasdiq olishi kerak.`,
-                              )
-                            )
-                              revoke.mutate(device.id);
-                          }}
-                        >
-                          Bekor qilish
-                        </button>
-                      )}
-                      <button
-                        className="danger"
-                        disabled={removeDevice.isPending}
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              `"${device.display_name}" kompyuterini roʻyxatdan butunlay oʻchirib tashlamoqchimisiz?`,
-                            )
-                          )
-                            removeDevice.mutate(device.id);
-                        }}
-                      >
-                        {removeDevice.isPending
-                          ? "Oʻchirilmoqda…"
-                          : "Oʻchirish"}
-                      </button>
-                    </div>
-                  </article>
-                ))}
-            </div>
+            <ErrorBox error={removeDevice.error} />
+            <DeviceOverview
+              devices={list}
+              loading={devices.isPending}
+              refreshing={devices.isFetching}
+              busy={removeDevice.isPending || revoke.isPending}
+              onRefresh={() => {
+                void devices.refetch();
+              }}
+              onAdd={() => navigateStep(3)}
+              onDownload={() => navigateStep(1)}
+              onOpen={(id) => {
+                selection.selectDevice(id);
+                setPage("device");
+              }}
+              onRevoke={(id) => revoke.mutate(id)}
+              onRemove={(id) => removeDevice.mutate(id)}
+            />
           </>
         )}
         <footer>
