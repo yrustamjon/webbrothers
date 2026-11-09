@@ -442,6 +442,7 @@ export function Explorer({
   const selection = useSelection();
   const [tab, setTab] = useState("history");
   const [profileSearch, setProfileSearch] = useState("");
+  const [mobileTreeOpen, setMobileTreeOpen] = useState(false);
   const browsers = useQuery<{ items: Browser[] }>({
     queryKey: ["browsers", device.id],
     queryFn: async ({ signal }) =>
@@ -538,8 +539,22 @@ export function Explorer({
               </div>
             </aside>
           )}
+          <button
+            type="button"
+            className="mobile-tree-toggle"
+            aria-expanded={mobileTreeOpen}
+            aria-controls="profile-navigation"
+            onClick={() => setMobileTreeOpen(!mobileTreeOpen)}
+          >
+            Brauzer va profilni tanlash{" "}
+            <span aria-hidden="true">{mobileTreeOpen ? "−" : "+"}</span>
+          </button>
           <div className="explorer">
-            <nav aria-label="Brauzer va profillar">
+            <nav
+              id="profile-navigation"
+              data-mobile-open={mobileTreeOpen}
+              aria-label="Brauzer va profillar"
+            >
               <div className="tree-brand">
                 <div className="tree-brand-title">WebBrothers</div>
                 <div className="tree-brand-caption">LOGIN INVENTORY</div>
@@ -659,6 +674,7 @@ export function Explorer({
                               if (selection.browser !== browser.id)
                                 selection.selectBrowser(browser.id);
                               selection.selectProfile(profile.id);
+                              setMobileTreeOpen(false);
                             }}
                           >
                             <ProfileLabel
@@ -739,9 +755,6 @@ export function Explorer({
                       </span>
                       <strong>{selectedProfile.name}</strong>
                     </div>
-                    <span className="breadcrumb-mockup-badge">
-                      DIZAYN NAMUNASI
-                    </span>
                   </div>
                   <div className="workspace-view-heading">
                     <div className="workspace-title-row">

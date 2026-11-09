@@ -5,6 +5,7 @@ import App from "./App";
 import "./style.css";
 import "./workspace.css";
 import "./mobile-design.css";
+import "./secondary-pages.css";
 const client = new QueryClient({
   defaultOptions: {
     queries: { retry: false, refetchOnWindowFocus: false, gcTime: 0 },
