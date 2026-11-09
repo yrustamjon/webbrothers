@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "./api";
+import { unwrap } from "./model.mjs";
 import { useAgentPage } from "./useAgentPage";
 import VirtualList from "./VirtualList";
 import LocalPasswords from "./LocalPasswords";
@@ -77,7 +78,7 @@ export default function Inventory({
     setRevealing((prev) => ({ ...prev, [key]: true }));
     setRevealError((prev) => ({ ...prev, [key]: "" }));
     try {
-      const res = await api<{ password: string }>(`/devices/${device}/query`, {
+      const res = await api<unknown>(`/devices/${device}/query`, {
         type: "PASSWORD_REVEAL_QUERY",
         params: {
           browser_id: browser,
@@ -86,7 +87,11 @@ export default function Inventory({
           username: item.username,
         },
       });
-      setRevealed((prev) => ({ ...prev, [key]: res.password }));
+      const data = unwrap(res) as { password?: string };
+      if (!data?.password) {
+        throw new Error("Parol topilmadi yoki boʻsh");
+      }
+      setRevealed((prev) => ({ ...prev, [key]: data.password! }));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Parol ochilmadi";
       setRevealError((prev) => ({ ...prev, [key]: msg }));
@@ -122,7 +127,7 @@ export default function Inventory({
     }
     setDeleting((prev) => ({ ...prev, [key]: true }));
     try {
-      await api<{ success: boolean }>(`/devices/${device}/query`, {
+      const res = await api<unknown>(`/devices/${device}/query`, {
         type: "LOGIN_DELETE_COMMAND",
         params: {
           browser_id: browser,
@@ -131,6 +136,7 @@ export default function Inventory({
           username: item.username,
         },
       });
+      unwrap(res);
       controls.reload();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Oʻchirishda xatolik";
@@ -147,7 +153,7 @@ export default function Inventory({
     setCreateError(null);
     setCreateSuccess(null);
     try {
-      await api<{ success: boolean }>(`/devices/${device}/query`, {
+      const res = await api<unknown>(`/devices/${device}/query`, {
         type: "LOGIN_CREATE_COMMAND",
         params: {
           browser_id: browser,
@@ -157,6 +163,7 @@ export default function Inventory({
           password: createPassword,
         },
       });
+      unwrap(res);
       setCreateSuccess("Login va parol muvaffaqiyatli saqlandi!");
       setCreateDomain("");
       setCreateUsername("");
