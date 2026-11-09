@@ -968,6 +968,19 @@ export default function App() {
       void devices.refetch();
     },
   });
+  const removeDevice = useMutation({
+    mutationFn: (id: string) =>
+      api(`/devices/${encodeURIComponent(id)}`, undefined, "DELETE"),
+    onSuccess: (_, id) => {
+      if (selection.device === id) {
+        selection.clear();
+      }
+      client.removeQueries({
+        predicate: (q) => q.queryKey[0] !== "me" && q.queryKey[0] !== "devices",
+      });
+      void devices.refetch();
+    },
+  });
   if (me.isPending)
     return (
       <main className="auth" role="status">
@@ -1229,13 +1242,29 @@ export default function App() {
             <div className="device-grid">
               {list.map((device) => (
                 <article
-                  className={`device-card ${selection.device === device.id ? "chosen" : ""}`}
+                  className={`device-card ${selection.device === device.id ? "chosen" : ""} status-${device.status}`}
                   key={device.id}
                 >
                   <div className="section-head">
-                    <span className={`device-icon ${device.operating_system}`}>
-                      <Icon name="devices" />
-                    </span>
+                    <div className="device-title-group">
+                      <span
+                        className={`device-icon ${device.operating_system}`}
+                      >
+                        <Icon name="devices" />
+                      </span>
+                      <div className="device-title-info">
+                        <h2>{device.display_name}</h2>
+                        <p className="device-platform">
+                          <span className="os-tag">
+                            {platformName(device.operating_system)}
+                          </span>
+                          <span className="arch-tag">
+                            {" "}
+                            · {device.architecture}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
                     <span
                       className={`status ${device.status === "online" ? "online" : ""}`}
                     >
@@ -1246,17 +1275,16 @@ export default function App() {
                           : "Tarmoqdan tashqarida"}
                     </span>
                   </div>
-                  <h2>{device.display_name}</h2>
-                  <p className="device-platform">
-                    {platformName(device.operating_system)}{" "}
-                    <span>· {device.architecture}</span>
-                  </p>
-                  <small>
-                    Oxirgi ulanish:{" "}
-                    {device.status === "online" && !device.last_seen_at
-                      ? "Hozir tarmoqda"
-                      : time(device.last_seen_at)}
-                  </small>
+                  <div className="device-meta-row">
+                    <small>
+                      Oxirgi ulanish:{" "}
+                      <strong>
+                        {device.status === "online" && !device.last_seen_at
+                          ? "Hozir tarmoqda"
+                          : time(device.last_seen_at)}
+                      </strong>
+                    </small>
+                  </div>
                   <div className="actions">
                     <button
                       disabled={device.status === "revoked"}
@@ -1270,19 +1298,35 @@ export default function App() {
                         : "Profil va maʼlumotlar"}{" "}
                       <Icon name="arrow" />
                     </button>
+                    {device.status !== "revoked" && (
+                      <button
+                        className="secondary"
+                        disabled={revoke.isPending}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `"${device.display_name}" qurilmasining ruxsatini bekor qilasizmi? Agent qayta ulanish uchun yangi tasdiq olishi kerak.`,
+                            )
+                          )
+                            revoke.mutate(device.id);
+                        }}
+                      >
+                        Bekor qilish
+                      </button>
+                    )}
                     <button
                       className="danger"
-                      disabled={revoke.isPending || device.status === "revoked"}
+                      disabled={removeDevice.isPending}
                       onClick={() => {
                         if (
                           window.confirm(
-                            "Qurilma ruxsatini bekor qilasizmi? Agent qayta ulanish uchun yangi tasdiq olishi kerak.",
+                            `"${device.display_name}" kompyuterini roʻyxatdan butunlay oʻchirib tashlamoqchimisiz?`,
                           )
                         )
-                          revoke.mutate(device.id);
+                          removeDevice.mutate(device.id);
                       }}
                     >
-                      Ruxsatni bekor qilish
+                      {removeDevice.isPending ? "Oʻchirilmoqda…" : "Oʻchirish"}
                     </button>
                   </div>
                 </article>

@@ -21,22 +21,25 @@ export async function api<T>(
     "/auth/password/reset",
     "/auth/verification/confirm",
   ].includes(path);
+  const isMutating =
+    (method && !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())) ||
+    body !== undefined;
   if (body !== undefined) {
-    headers = { "Content-Type": "application/json" };
-    if (!publicAuth) {
-      const csrf = await fetch(`${base}/auth/csrf`, {
-        credentials: "include",
-        cache: "no-store",
-        signal,
-      });
-      if (!csrf.ok)
-        throw new APIError(
-          csrf.status,
-          "Xavfsizlik tokenini olish imkoni boʻlmadi.",
-        );
-      const token = await csrf.json();
-      headers["X-CSRF-Token"] = token.csrf_token;
-    }
+    headers["Content-Type"] = "application/json";
+  }
+  if (!publicAuth && isMutating) {
+    const csrf = await fetch(`${base}/auth/csrf`, {
+      credentials: "include",
+      cache: "no-store",
+      signal,
+    });
+    if (!csrf.ok)
+      throw new APIError(
+        csrf.status,
+        "Xavfsizlik tokenini olish imkoni boʻlmadi.",
+      );
+    const token = await csrf.json();
+    headers["X-CSRF-Token"] = token.csrf_token;
   }
   const response = await fetch(`${base}${path}`, {
     method: method ?? (body === undefined ? "GET" : "POST"),

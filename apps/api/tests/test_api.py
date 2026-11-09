@@ -132,6 +132,22 @@ def test_pairing_single_use_and_revocation(client):
             pass
 
 
+def test_delete_device(client):
+    c = client
+    h = account(c)
+    _, d = pair(c, h)
+    assert len(c.get("/api/v1/devices", headers=h).json()["items"]) == 1
+    # Revoke first
+    assert (
+        c.post(f"/api/v1/devices/{d['device_id']}/revoke", headers=h).status_code == 200
+    )
+    # Can delete revoked device
+    assert c.delete(f"/api/v1/devices/{d['device_id']}", headers=h).status_code == 200
+    assert len(c.get("/api/v1/devices", headers=h).json()["items"]) == 0
+    # Deleting nonexistent returns 404
+    assert c.delete(f"/api/v1/devices/{d['device_id']}", headers=h).status_code == 404
+
+
 def test_ownership_and_scopes(client):
     c = client
     h = account(c)

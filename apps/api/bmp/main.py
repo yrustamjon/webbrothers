@@ -639,6 +639,18 @@ def create_app(settings=None):
                 future[0].set_exception(ConnectionError())
         return {"message": "Qurilma ruxsati bekor qilindi"}
 
+    @app.delete("/api/v1/devices/{device_id}")
+    async def delete_device(device_id: str, identity=Depends(auth), s=Depends(db)):
+        d = s.get(Device, device_id)
+        if not d or d.owner_id != identity[0].id:
+            fail(404, "Qurilma topilmadi")
+        device_pk = d.id
+        await interrupt_device(device_pk)
+        s.delete(d)
+        audit(s, identity[0].id, "device.deleted", device_pk)
+        s.commit()
+        return {"message": "Qurilma butunlay oʻchirildi"}
+
     @app.get("/api/v1/agent/installers")
     def installers(identity=Depends(auth)):
         return latest_installers()
