@@ -932,3 +932,40 @@
   padding: 0 8px 24px;
   color: #252530;
 }
+/* Keep the desktop tree flush to the rail, as in the approved mockup. */
+@media (min-width: 961px) {
+  .design-v3.device-page .workspace-content {
+    padding: 0;
+  }
+  .design-v3.device-page .device-workspace {
+    margin: 0;
+  }
+  .design-v3.device-page .device-workspace > .workspace-breadcrumb {
+    display: none;
+  }
+  .design-v3 .explorer {
+    border-top: 0;
+    min-height: 100vh;
+  }
+  .design-v3 .explorer > nav {
+    border: 0;
+    border-right: 1px solid var(--line);
+    border-radius: 0;
+    box-shadow: none;
+    min-height: 100vh;
+  }
+}
+.design-v3 .detail > .tabs {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+.design-v3 .login-filters label {
+  width: 100%;
+  max-width: none;
+}
+.design-v3 .login-filters label input {
+  max-width: none;
+}
