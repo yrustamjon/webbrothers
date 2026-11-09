@@ -417,7 +417,7 @@ function SignedBinaries() {
       )}
       <p className="muted">
         Linux/Windows/macOS qurilma trafik yigʻindisi, Safari tarixi va Chromium
-        oilasida parollarsiz login metamaʼlumotlari mavjud. Paket mavjudligi OS
+        oilasida login va parollar boshqaruvi mavjud. Paket mavjudligi OS
         sinovidan oʻtganlik kafolati emas.
       </p>
       <h3>Oʻchirish</h3>

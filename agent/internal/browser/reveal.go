@@ -27,6 +27,16 @@ func rwURI(path string) (string, error) {
 	return uri.String(), nil
 }
 
+func lockFriendlyError(err error, fallback string) error {
+	if err == nil {
+		return nil
+	}
+	if strings.Contains(err.Error(), "database is locked") || strings.Contains(err.Error(), "busy") {
+		return errors.New("Brauzer ochiq va profil qulflangan; brauzerni yopib qayta urinib koʻring")
+	}
+	return errors.New(fallback + ": " + err.Error())
+}
+
 func hasColumn(db *sql.DB, tableName, columnName string) bool {
 	rows, err := db.Query("PRAGMA table_info(" + tableName + ")")
 	if err != nil {
@@ -213,7 +223,7 @@ func SavePassword(browsers []Browser, browserID, profileID, domain, username, pa
 	var count int
 	err = db.QueryRow(countQuery, countArgs...).Scan(&count)
 	if err != nil {
-		return errors.New("Login bazasini tekshirib boʻlmadi: " + err.Error())
+		return lockFriendlyError(err, "Login bazasini tekshirib boʻlmadi")
 	}
 
 	if count > 0 {
@@ -225,7 +235,7 @@ func SavePassword(browsers []Browser, browserID, profileID, domain, username, pa
 		}
 		_, err = db.Exec(updateQuery, updateArgs...)
 		if err != nil {
-			return errors.New("Parolni yangilash muvaffaqiyatsiz: " + err.Error())
+			return lockFriendlyError(err, "Parolni yangilash muvaffaqiyatsiz")
 		}
 	} else {
 		_, err = db.Exec(
@@ -240,7 +250,7 @@ func SavePassword(browsers []Browser, browserID, profileID, domain, username, pa
 				originURL, username, encrypted,
 			)
 			if err != nil {
-				return errors.New("Parolni saqlash muvaffaqiyatsiz: " + err.Error())
+				return lockFriendlyError(err, "Parolni saqlash muvaffaqiyatsiz")
 			}
 		}
 	}
@@ -301,7 +311,7 @@ func DeletePassword(browsers []Browser, browserID, profileID, domain, username s
 
 	res, err := db.Exec(delQuery, delArgs...)
 	if err != nil {
-		return errors.New("Loginni oʻchirish muvaffaqiyatsiz: " + err.Error())
+		return lockFriendlyError(err, "Loginni oʻchirish muvaffaqiyatsiz")
 	}
 	affected, _ := res.RowsAffected()
 	if affected == 0 {

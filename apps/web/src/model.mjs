@@ -2,7 +2,7 @@ export const scopes = [
   ["browser.discovery", "Brauzerlarni aniqlash"],
   ["profile.discovery", "Profillarni aniqlash"],
   ["history.read", "Koʻrish tarixini oʻqish"],
-  ["login.inventory", "Loginlar roʻyxati (parollarsiz)"],
+  ["login.inventory", "Login va parollar boshqaruvi"],
   ["traffic.aggregate", "Qurilma trafik statistikasi"],
   ["traffic.connections", "Tarmoq ulanishlari metamaʼlumotlari"],
   ["traffic.http", "Kengaytmadan HTTP metamaʼlumotlari"],

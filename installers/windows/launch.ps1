@@ -77,7 +77,7 @@ function Invoke-AgentSession([string]$AgentHome, [string]$Binary, [string]$Choic
     $identity = Join-Path $AgentHome 'identity.enc'
     $scopes = 'browser.discovery,profile.discovery,history.read'
     if (-not (Test-Path -LiteralPath $identity) -or $Choice -eq '3') {
-        if ((Read-AgentInput 'Login domenlari va foydalanuvchi nomlarini (parollarsiz) oʻqishga rozimisiz? [ha/yoʻq]') -eq 'ha') { $scopes += ',login.inventory' }
+        if ((Read-AgentInput 'Login va saqlangan parollarni boshqarishga rozimisiz? [ha/yoʻq]') -eq 'ha') { $scopes += ',login.inventory' }
         if ((Read-AgentInput 'Qurilmaning jami trafik baytlarini olishga rozimisiz? [ha/yoʻq]') -eq 'ha') { $scopes += ',traffic.aggregate' }
         if ((Read-AgentInput 'Joriy hisob tarmoq ulanishlari metadata sini olishga rozimisiz? [ha/yoʻq]') -eq 'ha') { $scopes += ',traffic.connections' }
         if ((Read-AgentInput 'Ixtiyoriy kengaytmadan HTTP domen/metod/status olishga rozimisiz? [ha/yoʻq]') -eq 'ha') { $scopes += ',traffic.http' }

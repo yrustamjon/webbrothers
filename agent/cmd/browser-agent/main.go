@@ -101,7 +101,7 @@ func run() error {
 		if e = serve(ctx, *server, i); e == nil {
 			return nil
 		}
-		fmt.Fprintln(os.Stderr, "Server bilan ulanish uzildi; qayta ulanmoqda.")
+		fmt.Fprintf(os.Stderr, "Server bilan ulanish uzildi (%v); qayta ulanmoqda.\n", e)
 		timer := time.NewTimer(transport.Backoff(attempt))
 		select {
 		case <-ctx.Done():

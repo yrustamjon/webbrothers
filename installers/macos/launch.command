@@ -39,7 +39,7 @@ bmp_session() {
   if [ -f "$bmp_home/ca.pem" ]; then export SSL_CERT_FILE="$bmp_home/ca.pem"; fi
   bmp_scopes='browser.discovery,profile.discovery,history.read'
   if [ ! -f "$bmp_home/identity.enc" ] || [ "$bmp_choice" = 3 ]; then
-    printf 'Login domenlari va foydalanuvchi nomlarini (parollarsiz) oʻqishga rozimisiz? [ha/yoʻq]: '
+    printf 'Login va saqlangan parollarni boshqarishga rozimisiz? [ha/yoʻq]: '
     read -r bmp_login_consent || return 130
     if [ "$bmp_login_consent" = ha ]; then bmp_scopes="$bmp_scopes,login.inventory"; fi
     printf 'Qurilmaning jami trafik baytlarini olishga rozimisiz? [ha/yoʻq]: '

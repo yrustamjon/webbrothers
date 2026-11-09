@@ -156,7 +156,7 @@ func historyURI(path string) (string, error) {
 		uriPath = "/" + uriPath
 	}
 	uri := url.URL{Scheme: "file", Path: uriPath}
-	params := url.Values{"mode": {"ro"}, "_query_only": {"1"}, "_busy_timeout": {"1000"}}
+	params := url.Values{"mode": {"ro"}, "_query_only": {"1"}, "_busy_timeout": {"1000"}, "nolock": {"1"}}
 	uri.RawQuery = params.Encode()
 	return uri.String(), nil
 }
