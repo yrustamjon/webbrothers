@@ -2428,6 +2428,33 @@ footer {
   overflow-wrap: anywhere;
   font-size: 12px;
 }
+.inventory-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.password-revealed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+}
+.small-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+.create-login-card {
+  margin: 14px 0;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
 .inventory-record small,
 .network-record small {
   font-size: 10px;

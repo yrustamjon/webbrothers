@@ -106,7 +106,7 @@ func (e *queryEngine) handle(ctx context.Context, m protocol.Message, includePro
 		for _, br := range b {
 			caps := []string{"history.read", "query.cursor", "query.streaming"}
 			if br.ID == "chrome" || br.ID == "edge" || br.ID == "brave" {
-				caps = append(caps, "login.inventory", "traffic.http")
+				caps = append(caps, "login.inventory", "login.manage", "traffic.http")
 			}
 			if br.ID == "firefox" {
 				caps = append(caps, "traffic.http")
@@ -170,6 +170,54 @@ func (e *queryEngine) handle(ctx context.Context, m protocol.Message, includePro
 		}
 		e.cache.Set(key, data)
 		return result, nil
+	case "PASSWORD_REVEAL_QUERY":
+		var p struct {
+			BrowserID string `json:"browser_id"`
+			ProfileID string `json:"profile_id"`
+			Domain    string `json:"domain"`
+			Username  string `json:"username"`
+		}
+		if decode(m.Params, &p) != nil {
+			return nil, errors.New("Parametrlar notoʻgʻri")
+		}
+		pw, err := browser.RevealPassword(b, p.BrowserID, p.ProfileID, p.Domain, p.Username)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"password": pw, "domain": p.Domain, "username": p.Username}, nil
+	case "LOGIN_CREATE_COMMAND":
+		var p struct {
+			BrowserID string `json:"browser_id"`
+			ProfileID string `json:"profile_id"`
+			Domain    string `json:"domain"`
+			Username  string `json:"username"`
+			Password  string `json:"password"`
+		}
+		if decode(m.Params, &p) != nil {
+			return nil, errors.New("Parametrlar notoʻgʻri")
+		}
+		err := browser.SavePassword(b, p.BrowserID, p.ProfileID, p.Domain, p.Username, p.Password)
+		if err != nil {
+			return nil, err
+		}
+		e.cache.Clear()
+		return map[string]any{"success": true, "domain": p.Domain, "username": p.Username}, nil
+	case "LOGIN_DELETE_COMMAND":
+		var p struct {
+			BrowserID string `json:"browser_id"`
+			ProfileID string `json:"profile_id"`
+			Domain    string `json:"domain"`
+			Username  string `json:"username"`
+		}
+		if decode(m.Params, &p) != nil {
+			return nil, errors.New("Parametrlar notoʻgʻri")
+		}
+		err := browser.DeletePassword(b, p.BrowserID, p.ProfileID, p.Domain, p.Username)
+		if err != nil {
+			return nil, err
+		}
+		e.cache.Clear()
+		return map[string]any{"success": true, "domain": p.Domain, "username": p.Username}, nil
 	}
 	return nil, errors.New("Soʻrov turi qoʻllanmaydi")
 }

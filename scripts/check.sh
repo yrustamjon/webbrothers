@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+if [ -f .venv/bin/activate ]; then
+  . .venv/bin/activate
+fi
 python3 -m ruff check apps/api
 python3 -m ruff format --check apps/api
 PYTHONPATH=apps/api:packages/security python3 -m pytest apps/api/tests

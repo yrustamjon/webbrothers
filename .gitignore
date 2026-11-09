@@ -14,5 +14,6 @@ coverage/
 *.pem
 *.key
 agent/bin/
+*.exe
 .DS_Store
 /.local/

@@ -21,6 +21,9 @@ REQUESTS = {
     "TRAFFIC_STATS_REQUEST": ("traffic.aggregate", "TRAFFIC_STATS_RESPONSE"),
     "CONNECTIONS_QUERY": ("traffic.connections", "CONNECTIONS_RESPONSE"),
     "HTTP_EVENTS_QUERY": ("traffic.http", "HTTP_EVENTS_RESPONSE"),
+    "PASSWORD_REVEAL_QUERY": ("login.inventory", "PASSWORD_REVEAL_RESPONSE"),
+    "LOGIN_CREATE_COMMAND": ("login.inventory", "LOGIN_CREATE_RESPONSE"),
+    "LOGIN_DELETE_COMMAND": ("login.inventory", "LOGIN_DELETE_RESPONSE"),
 }
 IDENTIFIER = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 ENVELOPE = {"version", "request_id", "device_id", "type", "timestamp", "expires_at", "scope"}
@@ -128,12 +131,20 @@ def _params(kind: str, params: Any) -> None:
         allowed = {"browser_id", "profile_id", "page_size", "cursor", "stream"}
     elif kind == "TRAFFIC_STATS_REQUEST":
         allowed = {"browser_id", "profile_id", "stream", "sample_count", "interval_ms"}
+    elif kind in ("PASSWORD_REVEAL_QUERY", "LOGIN_DELETE_COMMAND"):
+        required = allowed = {"browser_id", "profile_id", "domain", "username"}
+    elif kind == "LOGIN_CREATE_COMMAND":
+        required = allowed = {"browser_id", "profile_id", "domain", "username", "password"}
     if not required <= params.keys() or params.keys() - allowed:
         _fail("unknown_or_missing_parameter")
     for key in ("browser_id", "profile_id"):
         if key in params:
             _text(params[key])
             if not IDENTIFIER.fullmatch(params[key]):
+                _fail("invalid_parameter")
+    for key in ("domain", "username", "password"):
+        if key in params:
+            if not isinstance(params[key], str) or not params[key] or len(params[key]) > 512 or "\x00" in params[key]:
                 _fail("invalid_parameter")
     if "search" in params:
         if not isinstance(params["search"], str) or len(params["search"]) > 512:
@@ -202,6 +213,19 @@ def _profile(value: Any) -> None:
 
 
 def _response_payload(kind: str, payload: dict) -> None:
+    if kind == "PASSWORD_REVEAL_QUERY":
+        _fields(payload, {"password", "domain", "username"})
+        _string(payload["password"], 512)
+        _string(payload["domain"], 512)
+        _string(payload["username"], 512)
+        return
+    if kind in ("LOGIN_CREATE_COMMAND", "LOGIN_DELETE_COMMAND"):
+        _fields(payload, {"success", "domain", "username"})
+        if type(payload["success"]) is not bool:
+            _fail("invalid_payload_schema")
+        _string(payload["domain"], 512)
+        _string(payload["username"], 512)
+        return
     if kind == "TRAFFIC_STATS_REQUEST":
         _fields(payload, {"received_bytes", "sent_bytes", "attribution", "collected_at"}, {
             "total_bytes", "download_bps", "upload_bps", "daily_received_bytes", "daily_sent_bytes",
@@ -260,10 +284,10 @@ def _response_payload(kind: str, payload: dict) -> None:
             _string(item["name"], 512)
             if "capabilities" in item:
                 capabilities = item["capabilities"]
-                if (not isinstance(capabilities, list) or len(capabilities) > 8
+                if (not isinstance(capabilities, list) or len(capabilities) > 12
                         or any(not isinstance(c, str) or c not in {
                             "history.read", "login.inventory", "traffic.aggregate", "query.cursor", "query.streaming",
-                            "traffic.connections", "traffic.http"
+                            "traffic.connections", "traffic.http", "login.manage"
                         } for c in capabilities)
                         or len(set(capabilities)) != len(capabilities)):
                     _fail("invalid_payload_schema")

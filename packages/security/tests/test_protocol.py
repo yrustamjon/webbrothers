@@ -43,6 +43,22 @@ class ProtocolTests(unittest.TestCase):
         response["expires_at"] = response["expires_at"].replace("+00:00", "Z")
         validate_response(response, original, NOW)
 
+    def test_login_management_requests_and_responses(self):
+        cases = [
+            ("PASSWORD_REVEAL_QUERY", {"browser_id": "chrome", "profile_id": "default", "domain": "example.com", "username": "alice"},
+             "PASSWORD_REVEAL_RESPONSE", {"password": "secret", "domain": "example.com", "username": "alice"}),
+            ("LOGIN_CREATE_COMMAND", {"browser_id": "chrome", "profile_id": "default", "domain": "example.com", "username": "alice", "password": "secret"},
+             "LOGIN_CREATE_RESPONSE", {"success": True, "domain": "example.com", "username": "alice"}),
+            ("LOGIN_DELETE_COMMAND", {"browser_id": "chrome", "profile_id": "default", "domain": "example.com", "username": "alice"},
+             "LOGIN_DELETE_RESPONSE", {"success": True, "domain": "example.com", "username": "alice"}),
+        ]
+        for kind, params, response_kind, payload in cases:
+            req = request(type=kind, scope="login.inventory", params=params)
+            validate_request(req, "device-1", {"login.inventory"}, NOW)
+            res = {k: v for k, v in req.items() if k != "params"}
+            res.update(type=response_kind, payload=payload)
+            validate_response(res, req, NOW)
+
     def test_reject_unknown_type_and_arbitrary_commands(self):
         for update in ({"type": "EXEC"}, {"params": {"command": "whoami"}}, {"command": "whoami"}):
             with self.subTest(update=update), self.assertRaises(ProtocolError):

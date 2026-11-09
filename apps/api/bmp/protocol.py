@@ -11,6 +11,9 @@ SCOPES = {
     "TRAFFIC_STATS_REQUEST": "traffic.aggregate",
     "CONNECTIONS_QUERY": "traffic.connections",
     "HTTP_EVENTS_QUERY": "traffic.http",
+    "PASSWORD_REVEAL_QUERY": "login.inventory",
+    "LOGIN_CREATE_COMMAND": "login.inventory",
+    "LOGIN_DELETE_COMMAND": "login.inventory",
 }
 RESPONSES = dict(
     zip(
@@ -23,6 +26,9 @@ RESPONSES = dict(
             "TRAFFIC_STATS_RESPONSE",
             "CONNECTIONS_RESPONSE",
             "HTTP_EVENTS_RESPONSE",
+            "PASSWORD_REVEAL_RESPONSE",
+            "LOGIN_CREATE_RESPONSE",
+            "LOGIN_DELETE_RESPONSE",
         ],
         strict=True,
     )
@@ -60,6 +66,9 @@ class PairPoll(Strict):
 class QueryParams(Strict):
     browser_id: str | None = Field(default=None, max_length=128)
     profile_id: str | None = Field(default=None, max_length=128)
+    domain: str | None = Field(default=None, max_length=512)
+    username: str | None = Field(default=None, max_length=512)
+    password: str | None = Field(default=None, max_length=512)
     search: str = Field(default="", max_length=200)
     page: int = Field(default=1, strict=True, ge=1, le=100000)
     page_size: int = Field(default=50, strict=True, ge=1, le=200)
@@ -81,6 +90,9 @@ class Query(Strict):
         "TRAFFIC_STATS_REQUEST",
         "CONNECTIONS_QUERY",
         "HTTP_EVENTS_QUERY",
+        "PASSWORD_REVEAL_QUERY",
+        "LOGIN_CREATE_COMMAND",
+        "LOGIN_DELETE_COMMAND",
     ]
     params: QueryParams = Field(default_factory=QueryParams)
 
