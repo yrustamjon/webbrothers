@@ -138,7 +138,9 @@ export default function LoginInventoryView({
   const controls = usePageControls({ search: "", sort: "asc" });
   const modern = capabilities.includes("query.cursor");
   const streaming = capabilities.includes("query.streaming");
-  const canReveal = capabilities.includes("password.reveal");
+  const canReveal =
+    capabilities.includes("password.reveal") ||
+    capabilities.includes("login.inventory");
   const canManage = capabilities.includes("login.inventory");
 
   // Reveal states
