@@ -230,7 +230,20 @@ export async function revokeSession(id: string): Promise<void> {
   await apiFetch(`/api/v1/auth/sessions/${id}`, { method: "DELETE" });
 }
 
-/** Releases */
+/** Installers & Releases */
+export interface InstallerItem {
+  platform: string;
+  architecture: string;
+  filename: string;
+  version: string;
+  download_url: string;
+  release_url: string;
+  sha256: string;
+}
+export async function getInstallers(): Promise<{ items: InstallerItem[]; status: string }> {
+  return apiJSON<{ items: InstallerItem[]; status: string }>("/api/v1/agent/installers");
+}
+
 export interface ReleaseItem {
   platform: string;
   architecture: string;

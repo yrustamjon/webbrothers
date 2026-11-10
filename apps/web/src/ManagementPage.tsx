@@ -10,10 +10,12 @@ import {
   revokeSession,
   getAudit,
   getReleases,
+  getInstallers,
   type Device,
   type UserSession,
   type AuditEvent,
   type ReleaseItem,
+  type InstallerItem,
   type Me,
 } from "./api";
 
@@ -34,11 +36,23 @@ interface Props {
   onRefreshDevices?: () => void;
 }
 
+function detectUserOS() {
+  const ua = (typeof navigator !== "undefined" ? navigator.userAgent : "").toLowerCase();
+  const isMac = ua.includes("mac");
+  const isWin = ua.includes("win");
+  const isArm = ua.includes("arm") || (isMac && typeof navigator !== "undefined" && navigator.maxTouchPoints > 0);
+  const platform = isMac ? "darwin" : isWin ? "windows" : "linux";
+  const architecture = isArm ? "arm64" : "amd64";
+  const name = isMac ? (isArm ? "macOS (Apple Silicon arm64)" : "macOS (Intel x64)") : isWin ? "Windows (64-bit)" : "Linux";
+  return { platform, architecture, name };
+}
+
 export default function ManagementPage({ page, currentUser, onToast, onRefreshDevices }: Props) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [sessions, setSessions] = useState<UserSession[]>([]);
   const [audits, setAudits] = useState<AuditEvent[]>([]);
   const [releases, setReleases] = useState<ReleaseItem[]>([]);
+  const [installers, setInstallers] = useState<InstallerItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Pairing Modal state
@@ -70,9 +84,11 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
         const sess = await getSessions();
         setSessions(sess);
       }
-      if (page === "Sozlamalar") {
+      if (page === "Sozlamalar" || page === "Yordam" || page === "Statistika") {
         const rels = await getReleases().catch(() => []);
         setReleases(rels);
+        const inst = await getInstallers().catch(() => ({ items: [], status: "unavailable" }));
+        setInstallers(inst.items || []);
       }
     } catch (err: unknown) {
       onToast((err as Error).message || "Ma'lumotlarni yuklashda xatolik", true);
@@ -403,17 +419,53 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
       {/* ----------------- SOZLAMALAR ----------------- */}
       {page === "Sozlamalar" && (
         <>
-          <div className="panel" style={{ maxWidth: 700, marginBottom: 20 }}>
-            <h3>Imzolangan agent distributivlari</h3>
+          <div className="panel" style={{ maxWidth: 750, marginBottom: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>Agent distributivlari</h3>
+              <span className="tag ok">Aniqlangan OS: {detectUserOS().name}</span>
+            </div>
             <p className="muted" style={{ marginBottom: 16 }}>
-              Kuzatuv agentini operatsion tizimingizga yuklab olib o'rnating.
+              Kuzatuv agentini o'z kompyuteringizga yuklab olib ishga tushiring. Agent operatsion tizimni avtomatik aniqlaydi va bir martalik pairing kodini taqdim etadi.
             </p>
-            {releases.length === 0 ? (
-              <div className="placeholder-note">
-                Hozircha serverda yuklangan rasmiy agent relizlari mavjud emas yoki ishlab chiquvchi rejimida ishlamoqda.
+
+            {installers.length > 0 ? (
+              <div className="tw" style={{ marginBottom: 14 }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Fayl</th>
+                      <th>OS</th>
+                      <th>Arxitektura</th>
+                      <th>Versiya</th>
+                      <th className="r">Yuklab olish</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {installers.map((inst, i) => {
+                      const current = detectUserOS();
+                      const isMatch = inst.platform === current.platform && inst.architecture === current.architecture;
+                      return (
+                        <tr key={i} style={isMatch ? { background: "var(--acs)" } : {}}>
+                          <td>
+                            <b>{inst.filename}</b>
+                            {isMatch && <span className="tag ok" style={{ marginLeft: 8 }}>Sizga mos</span>}
+                          </td>
+                          <td>{inst.platform === "darwin" ? "macOS" : "Windows"}</td>
+                          <td>{inst.architecture}</td>
+                          <td>v{inst.version}</td>
+                          <td className="r">
+                            <a href={inst.download_url} target="_blank" rel="noreferrer" className="btn sm">
+                              Yuklab olish
+                            </a>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            ) : (
-              <div className="tw">
+            ) : releases.length > 0 ? (
+              <div className="tw" style={{ marginBottom: 14 }}>
                 <table>
                   <thead>
                     <tr>
@@ -439,10 +491,18 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
                   </tbody>
                 </table>
               </div>
+            ) : (
+              <div className="placeholder-note" style={{ marginBottom: 14 }}>
+                <b>Lokal dasturchi rejimi:</b> Loyihani mahalliy sinovdan o'tkazish uchun terminalda:
+                <pre style={{ margin: "8px 0", background: "var(--bg2)", padding: 10, borderRadius: 6, overflowX: "auto" }}>
+                  <code>./start-local.command{"\n"}# yoki{"\n"}cd agent && go run ./cmd/browser-agent</code>
+                </pre>
+                Agent ishga tushgach, ekranda ko'rsatilgan <b>Pairing kodi</b> orqali qurilmangizni ulang.
+              </div>
             )}
           </div>
 
-          <div className="panel" style={{ maxWidth: 700 }}>
+          <div className="panel" style={{ maxWidth: 750 }}>
             <h3>Xavfsizlik va maxfiylik siyosati</h3>
             <p className="muted">
               • Brauzer tarixi, hisob ma'lumotlari, trafik va parollar markaziy bazaga saqlanmaydi.<br />
