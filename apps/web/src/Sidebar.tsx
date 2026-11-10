@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getDevices, query, type Device } from "./api";
 
 export interface Profile {
@@ -39,10 +39,12 @@ export default function Sidebar({ deviceId, selectedProfile, onSelectProfile }: 
   const [openBrowsers, setOpenBrowsers] = useState<Record<string, boolean>>({});
   const [filterText, setFilterText] = useState("");
   const [loading, setLoading] = useState(true);
+  const loadedRef = useRef<Record<string, boolean>>({});
 
   const loadBrowsers = useCallback(async (dev: Device) => {
-    if (browsers[dev.id]) return;
+    if (loadedRef.current[dev.id]) return;
     if (!dev.scopes.includes("browser.discovery")) return;
+    loadedRef.current[dev.id] = true;
     try {
       const data = await query<{ payload?: { items?: { id: string; name: string }[] } }>(
         dev.id,
@@ -50,25 +52,25 @@ export default function Sidebar({ deviceId, selectedProfile, onSelectProfile }: 
       );
 
       const browserList = data.payload?.items ?? [];
-      const withProfiles: { id: string; name: string; profiles: { id: string; name: string }[] }[] = [];
-
-      for (const b of browserList.slice(0, 10)) {
-        try {
-          const pr = await query<{ payload?: { items?: { id: string; name: string }[] } }>(
-            dev.id,
-            "PROFILE_LIST_REQUEST",
-            { browser_id: b.id }
-          );
-          withProfiles.push({ id: b.id, name: b.name, profiles: pr.payload?.items ?? [] });
-        } catch {
-          withProfiles.push({ id: b.id, name: b.name, profiles: [] });
-        }
-      }
+      const withProfiles = await Promise.all(
+        browserList.slice(0, 10).map(async (b) => {
+          try {
+            const pr = await query<{ payload?: { items?: { id: string; name: string }[] } }>(
+              dev.id,
+              "PROFILE_LIST_REQUEST",
+              { browser_id: b.id }
+            );
+            return { id: b.id, name: b.name, profiles: pr.payload?.items ?? [] };
+          } catch {
+            return { id: b.id, name: b.name, profiles: [] };
+          }
+        })
+      );
       setBrowsers(prev => ({ ...prev, [dev.id]: withProfiles }));
     } catch {
-      /* ignore */
+      loadedRef.current[dev.id] = false;
     }
-  }, [browsers]);
+  }, []);
 
   const loadDevices = useCallback(async () => {
     try {

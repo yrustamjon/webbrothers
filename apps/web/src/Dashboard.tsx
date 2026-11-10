@@ -82,7 +82,7 @@ export default function Dashboard({
     })();
 
     return () => abortRef.current?.abort();
-  }, [activeDevice]);
+  }, [activeDevice?.id]);
 
   // Mini SVG points
   const mx = Math.max(...dlArr, ...ulArr, 512);
