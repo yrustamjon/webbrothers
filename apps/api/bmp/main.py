@@ -42,6 +42,7 @@ from .installers import latest_installers
 from .models import AccountToken, Audit, Base, Device, Enrollment, Session, User
 from .protocol import (
     SCOPES,
+    ChangePasswordInput,
     Credentials,
     EmailInput,
     MonitoringUpdate,
@@ -470,6 +471,26 @@ def create_app(settings=None):
         s.execute(delete(Session).where(Session.user_id == user.id))
         s.commit()
         return {"message": "Parol yangilandi"}
+
+    @app.post("/api/v1/auth/password/change")
+    async def change_password(
+        body: ChangePasswordInput,
+        request: Request,
+        identity=Depends(auth),
+        s=Depends(db),
+    ):
+        rate(request, "change-password", 5)
+        user = identity[0]
+        try:
+            valid = hasher.verify(user.password_hash, body.current_password)
+        except (VerifyMismatchError, InvalidHashError):
+            valid = False
+        if not valid:
+            fail(400, "Joriy parol notoʻgʻri")
+        user.password_hash = hasher.hash(body.new_password)
+        audit(s, user.id, "auth.password_changed")
+        s.commit()
+        return {"message": "Parol muvaffaqiyatli oʻzgartirildi"}
 
     @app.post("/api/v1/pairing/start", status_code=201)
     async def pair_start(body: PairStart, request: Request, s=Depends(db)):

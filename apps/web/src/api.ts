@@ -73,6 +73,13 @@ export async function getMe(): Promise<Me> {
   return apiJSON<Me>("/api/v1/auth/me");
 }
 
+export async function changePassword(current_password: string, new_password: string): Promise<{ message: string }> {
+  return apiJSON<{ message: string }>("/api/v1/auth/password/change", {
+    method: "POST",
+    body: JSON.stringify({ current_password, new_password }),
+  });
+}
+
 
 /** Devices */
 export interface Device {
@@ -85,22 +92,37 @@ export interface Device {
   monitoring_paused: boolean;
   revoked: boolean;
   last_seen_at: string | null;
+  version?: string;
 }
 
-export async function getDevices(): Promise<Device[]> {
+let cachedDevices: { data: Device[]; expires: number } | null = null;
+
+export function clearDeviceCache() {
+  cachedDevices = null;
+}
+
+export async function getDevices(force = false): Promise<Device[]> {
+  const now = Date.now();
+  if (!force && cachedDevices && cachedDevices.expires > now) {
+    return cachedDevices.data;
+  }
   const data = await apiJSON<{ items: Device[] }>("/api/v1/devices");
+  cachedDevices = { data: data.items, expires: now + 3000 };
   return data.items;
 }
 
 export async function revokeDevice(id: string): Promise<void> {
+  clearDeviceCache();
   await apiFetch(`/api/v1/devices/${id}/revoke`, { method: "POST" });
 }
 
 export async function deleteDevice(id: string): Promise<void> {
+  clearDeviceCache();
   await apiFetch(`/api/v1/devices/${id}`, { method: "DELETE" });
 }
 
 export async function updateScopes(id: string, scopes: string[]): Promise<void> {
+  clearDeviceCache();
   await apiFetch(`/api/v1/devices/${id}/scopes`, {
     method: "POST",
     body: JSON.stringify({ scopes }),
@@ -108,6 +130,7 @@ export async function updateScopes(id: string, scopes: string[]): Promise<void> 
 }
 
 export async function setMonitoring(id: string, paused: boolean): Promise<void> {
+  clearDeviceCache();
   await apiFetch(`/api/v1/devices/${id}/monitoring`, {
     method: "POST",
     body: JSON.stringify({ paused }),
@@ -219,6 +242,7 @@ export async function startPairing(body: {
   });
 }
 export async function approvePairing(code: string, scopes: string[]): Promise<void> {
+  clearDeviceCache();
   await apiFetch("/api/v1/pairing/approve", {
     method: "POST",
     body: JSON.stringify({ code, scopes }),
@@ -249,8 +273,16 @@ export interface InstallerItem {
   release_url: string;
   sha256: string;
 }
-export async function getInstallers(): Promise<{ items: InstallerItem[]; status: string }> {
-  return apiJSON<{ items: InstallerItem[]; status: string }>("/api/v1/agent/installers");
+
+let cachedInstallers: { data: { items: InstallerItem[]; status: string }; expires: number } | null = null;
+export async function getInstallers(force = false): Promise<{ items: InstallerItem[]; status: string }> {
+  const now = Date.now();
+  if (!force && cachedInstallers && cachedInstallers.expires > now) {
+    return cachedInstallers.data;
+  }
+  const data = await apiJSON<{ items: InstallerItem[]; status: string }>("/api/v1/agent/installers");
+  cachedInstallers = { data, expires: now + 60000 };
+  return data;
 }
 
 export interface ReleaseItem {
@@ -262,7 +294,14 @@ export interface ReleaseItem {
   signature: string;
   download_url: string;
 }
-export async function getReleases(): Promise<ReleaseItem[]> {
+
+let cachedReleases: { data: ReleaseItem[]; expires: number } | null = null;
+export async function getReleases(force = false): Promise<ReleaseItem[]> {
+  const now = Date.now();
+  if (!force && cachedReleases && cachedReleases.expires > now) {
+    return cachedReleases.data;
+  }
   const data = await apiJSON<{ items: ReleaseItem[] }>("/api/v1/agent/releases");
+  cachedReleases = { data: data.items, expires: now + 60000 };
   return data.items;
 }

@@ -115,3 +115,8 @@ class ScopeUpdate(Strict):
 
 class MonitoringUpdate(Strict):
     paused: bool = Field(strict=True)
+
+
+class ChangePasswordInput(Strict):
+    current_password: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=12, max_length=256)

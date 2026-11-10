@@ -12,6 +12,16 @@ from fastapi.staticfiles import StaticFiles
 from .main import create_app
 
 
+class CachedStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if "assets/" in path:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif path.endswith(".html") or not path or path == ".":
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return response
+
+
 def create_dev_app(web_directory: Path) -> FastAPI:
     """Mount the built UI after all existing API and WebSocket routes."""
     directory = Path(web_directory).expanduser().resolve()
@@ -22,7 +32,7 @@ def create_dev_app(web_directory: Path) -> FastAPI:
             "apps/web/dist katalogining toʻliq yoʻliga sozlang."
         )
     app = create_app()
-    app.mount("/", StaticFiles(directory=directory, html=True), name="web")
+    app.mount("/", CachedStaticFiles(directory=directory, html=True), name="web")
     return app
 
 

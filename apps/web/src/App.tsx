@@ -1,23 +1,40 @@
 import { useState, useEffect, useCallback } from "react";
-import { getMe, logout, refreshCsrf, getDevices, type Me, type Device } from "./api";
+import {
+  getMe,
+  logout,
+  refreshCsrf,
+  getDevices,
+  getInstallers,
+  getReleases,
+  type Me,
+  type Device,
+  type InstallerItem,
+  type ReleaseItem,
+} from "./api";
 import AuthPage from "./AuthPage";
 import Sidebar, { type Profile } from "./Sidebar";
 import { HistoryView, LoginsView } from "./BrowserViews";
 import TrafficView from "./TrafficView";
 import ManagementPage from "./ManagementPage";
+import Dashboard from "./Dashboard";
 
-export type NavPage = "Qurilmalar" | "Statistika" | "Xavfsizlik" | "Foydalanuvchilar" | "Sozlamalar" | "Yordam";
+export type NavPage = "Dashboard" | "Qurilmalar" | "Statistika" | "Xavfsizlik" | "Foydalanuvchilar" | "Sozlamalar" | "Yordam";
 export type TabId = "tarix" | "login" | "trafik";
 
 const NAV_ITEMS: { page: NavPage; title: string; icon: React.ReactNode }[] = [
   {
+    page: "Dashboard",
+    title: "Boshqaruv paneli",
+    icon: <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></svg>,
+  },
+  {
     page: "Qurilmalar",
-    title: "Qurilmalar",
+    title: "Qurilmalar va Brauzerlar",
     icon: <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></svg>,
   },
   {
     page: "Statistika",
-    title: "Statistika",
+    title: "Qurilmalar boshqaruvi",
     icon: <svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7" /></svg>,
   },
   {
@@ -40,8 +57,10 @@ const NAV_ITEMS: { page: NavPage; title: string; icon: React.ReactNode }[] = [
 export default function App() {
   const [currentUser, setCurrentUser] = useState<Me | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
-  const [page, setPage] = useState<NavPage>("Qurilmalar");
+  const [page, setPage] = useState<NavPage>("Dashboard");
   const [tab, setTab] = useState<TabId>("tarix");
+  const [installers, setInstallers] = useState<InstallerItem[]>([]);
+  const [releases, setReleases] = useState<ReleaseItem[]>([]);
 
   // Device & Profile
   const [devices, setDevices] = useState<Device[]>([]);
@@ -88,6 +107,8 @@ export default function App() {
   useEffect(() => {
     if (currentUser) {
       loadDevices();
+      getInstallers().then(res => setInstallers(res.items || [])).catch(() => {});
+      getReleases().then(res => setReleases(res)).catch(() => {});
     }
   }, [currentUser, loadDevices]);
 
@@ -259,7 +280,22 @@ export default function App() {
             </>
           )}
 
-          {!isDevicePage && (
+          {page === "Dashboard" && (
+            <Dashboard
+              devices={devices}
+              userEmail={currentUser.email}
+              installers={installers}
+              releases={releases}
+              onNavigate={(p) => setPage(p)}
+              onSelectDevice={(d) => {
+                setSelectedDevice(d);
+                setPage("Qurilmalar");
+              }}
+              onOpenPairModal={() => setPage("Statistika")}
+            />
+          )}
+
+          {!isDevicePage && page !== "Dashboard" && (
             <ManagementPage
               page={page}
               currentUser={currentUser}

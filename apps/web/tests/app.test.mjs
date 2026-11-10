@@ -17,6 +17,7 @@ test("Web app source files exist", () => {
   assert.ok(fs.existsSync(path.join(src, "TrafficView.tsx")));
   assert.ok(fs.existsSync(path.join(src, "ManagementPage.tsx")));
   assert.ok(fs.existsSync(path.join(src, "AuthPage.tsx")));
+  assert.ok(fs.existsSync(path.join(src, "Dashboard.tsx")));
 });
 
 test("Index html mounts root element and main.tsx", () => {

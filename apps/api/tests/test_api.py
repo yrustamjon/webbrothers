@@ -80,6 +80,34 @@ def test_auth_csrf_sessions(client):
     assert c.get("/api/v1/auth/me").status_code == 401
 
 
+def test_change_password(client):
+    c = client
+    h = account(c, email="changepwd@example.com")
+    r = c.post(
+        "/api/v1/auth/password/change",
+        json={
+            "current_password": "wrong-password-here",
+            "new_password": "new-strong-password-42",
+        },
+        headers=h,
+    )
+    assert r.status_code == 400
+    r = c.post(
+        "/api/v1/auth/password/change",
+        json={
+            "current_password": "strong-password-42",
+            "new_password": "new-strong-password-42",
+        },
+        headers=h,
+    )
+    assert r.status_code == 200, r.text
+    r = c.post(
+        "/api/v1/auth/login",
+        json={"email": "changepwd@example.com", "password": "new-strong-password-42"},
+    )
+    assert r.status_code == 200
+
+
 def test_pairing_single_use_and_revocation(client):
     c = client
     h = account(c)

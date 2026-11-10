@@ -11,6 +11,7 @@ import {
   getAudit,
   getReleases,
   getInstallers,
+  changePassword,
   type Device,
   type UserSession,
   type AuditEvent,
@@ -68,6 +69,25 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
   // Scopes editor modal
   const [scopeDevice, setScopeDevice] = useState<Device | null>(null);
   const [editScopes, setEditScopes] = useState<string[]>([]);
+
+  // Re-pair / Update modal state
+  const [rePairDevice, setRePairDevice] = useState<Device | null>(null);
+  const [rePairCode, setRePairCode] = useState("");
+  const [rePairLoading, setRePairLoading] = useState(false);
+
+  // Password change state
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [pwdLoading, setPwdLoading] = useState(false);
+
+  // System preferences
+  const [themePreference, setThemePreference] = useState<"light" | "dark" | "system">(() => {
+    const t = typeof document !== "undefined" ? document.documentElement.dataset.theme : "";
+    return t === "light" ? "light" : t === "dark" ? "dark" : "system";
+  });
+  const [soundNotify, setSoundNotify] = useState(true);
+  const [securityAlerts, setSecurityAlerts] = useState(true);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -175,6 +195,62 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
     }
   };
 
+  const handleRePairSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rePairDevice || !rePairCode.trim()) return;
+    setRePairLoading(true);
+    try {
+      await approvePairing(rePairCode.trim().toUpperCase(), rePairDevice.scopes || [
+        "browser.discovery",
+        "profile.discovery",
+        "history.read",
+        "traffic.aggregate",
+      ]);
+      onToast(`"${rePairDevice.display_name}" qurilmasi yangilandi va muvaffaqiyatli ulandi!`);
+      setRePairDevice(null);
+      setRePairCode("");
+      await loadData();
+      onRefreshDevices?.();
+    } catch (err: unknown) {
+      onToast((err as Error).message || "Qayta ulashda xatolik", true);
+    } finally {
+      setRePairLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPwd.length < 12) {
+      onToast("Yangi parol kamida 12 belgidan iborat bo'lishi kerak", true);
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      onToast("Yangi parollar bir-biriga mos kelmadi", true);
+      return;
+    }
+    setPwdLoading(true);
+    try {
+      const res = await changePassword(currentPwd, newPwd);
+      onToast(res.message || "Parol muvaffaqiyatli yangilandi!");
+      setCurrentPwd("");
+      setNewPwd("");
+      setConfirmPwd("");
+    } catch (err: unknown) {
+      onToast((err as Error).message || "Parolni o'zgartirishda xatolik", true);
+    } finally {
+      setPwdLoading(false);
+    }
+  };
+
+  const handleThemeChange = (mode: "light" | "dark" | "system") => {
+    setThemePreference(mode);
+    if (mode === "system") {
+      delete document.documentElement.dataset.theme;
+    } else {
+      document.documentElement.dataset.theme = mode;
+    }
+  };
+
   return (
     <div>
       {/* ----------------- STATISTIKA ----------------- */}
@@ -214,6 +290,7 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
                 <tr>
                   <th>Qurilma</th>
                   <th>Operatsion tizim</th>
+                  <th>Versiya</th>
                   <th>Holat</th>
                   <th>Monitoring</th>
                   <th>Oxirgi aloqa</th>
@@ -223,7 +300,7 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
               <tbody>
                 {devices.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <div className="empty">Hozircha ulangan qurilmalar yo'q. "+ Agentni ulash" tugmasini bosing.</div>
                     </td>
                   </tr>
@@ -232,6 +309,12 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
                     const isOnline = !d.revoked && d.last_seen_at
                       ? (Date.now() - new Date(d.last_seen_at).getTime() < 60000)
                       : false;
+                    const latestVer = installers[0]?.version || releases[0]?.version || "0.1.8";
+                    const isOutdated = d.version && d.version !== latestVer;
+                    const matchedInst = installers.find(
+                      i => (i.platform === d.operating_system || (d.operating_system === "macos" && i.platform === "darwin")) &&
+                           i.architecture === d.architecture
+                    );
                     return (
                       <tr key={d.id}>
                         <td>
@@ -239,6 +322,14 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
                           <small style={{ display: "block", color: "var(--mut)" }}>{d.architecture}</small>
                         </td>
                         <td>{d.operating_system}</td>
+                        <td>
+                          <span>v{d.version || latestVer}</span>
+                          {isOutdated && (
+                            <span className="tag off" style={{ marginLeft: 6, fontSize: 11 }}>
+                              ⚠️ Yangilanish mavjud
+                            </span>
+                          )}
+                        </td>
                         <td>
                           {d.revoked ? (
                             <span className="tag off">Bekor qilingan</span>
@@ -264,6 +355,28 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
                           <div className="data-actions">
                             {!d.revoked && (
                               <>
+                                {matchedInst && (
+                                  <a
+                                    href={matchedInst.download_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mini"
+                                    title="Yangi versiyani yuklab olish"
+                                  >
+                                    📥 Agent
+                                  </a>
+                                )}
+                                <button
+                                  className="mini"
+                                  style={{ color: "var(--ac)" }}
+                                  onClick={() => {
+                                    setRePairDevice(d);
+                                    setRePairCode("");
+                                  }}
+                                  title="Ushbu kompyuterga yangi agentni bog'lash"
+                                >
+                                  🔄 Yangilashni tasdiqlash
+                                </button>
                                 <button className="mini" onClick={() => handleToggleMonitoring(d)}>
                                   {d.monitoring_paused ? "Tiklash" : "To'xtatish"}
                                 </button>
@@ -292,6 +405,55 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Distributivlar bloki Statistika sahifasida */}
+          <div className="panel" style={{ marginTop: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>Agent yuklab olish paketlari</h3>
+              <span className="tag ok">Sizning tizim: {detectUserOS().name}</span>
+            </div>
+            {installers.length > 0 ? (
+              <div className="tw">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Fayl</th>
+                      <th>OS</th>
+                      <th>Arxitektura</th>
+                      <th>Versiya</th>
+                      <th className="r">Yuklab olish</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {installers.map((inst, i) => {
+                      const current = detectUserOS();
+                      const isMatch = inst.platform === current.platform && inst.architecture === current.architecture;
+                      return (
+                        <tr key={i} style={isMatch ? { background: "var(--acs)" } : {}}>
+                          <td>
+                            <b>{inst.filename}</b>
+                            {isMatch && <span className="tag ok" style={{ marginLeft: 8 }}>Sizga mos</span>}
+                          </td>
+                          <td>{inst.platform === "darwin" ? "macOS" : "Windows"}</td>
+                          <td>{inst.architecture}</td>
+                          <td>v{inst.version}</td>
+                          <td className="r">
+                            <a href={inst.download_url} target="_blank" rel="noreferrer" className="btn sm">
+                              Yuklab olish
+                            </a>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="muted" style={{ margin: 0 }}>
+                Oxirgi versiya: <b>v0.1.8</b>. Mahalliy sinov uchun <code>./start-local.command</code> dan foydalanishingiz mumkin.
+              </p>
+            )}
           </div>
         </>
       )}
@@ -418,99 +580,151 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
 
       {/* ----------------- SOZLAMALAR ----------------- */}
       {page === "Sozlamalar" && (
-        <>
-          <div className="panel" style={{ maxWidth: 750, marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h3 style={{ margin: 0 }}>Agent distributivlari</h3>
-              <span className="tag ok">Aniqlangan OS: {detectUserOS().name}</span>
+        <div style={{ maxWidth: 750, display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* 1. Profil ma'lumotlari */}
+          <div className="panel">
+            <h3 style={{ margin: "0 0 14px" }}>Foydalanuvchi profili</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+              <div>
+                <span className="muted" style={{ fontSize: 12 }}>Elektron pochta</span>
+                <div style={{ fontWeight: 600, fontSize: 15, marginTop: 4 }}>{currentUser.email}</div>
+              </div>
+              <div>
+                <span className="muted" style={{ fontSize: 12 }}>Hisob holati</span>
+                <div style={{ marginTop: 4 }}>
+                  <span className="tag ok">Faol / Tasdiqlangan</span>
+                </div>
+              </div>
+              <div>
+                <span className="muted" style={{ fontSize: 12 }}>Roli</span>
+                <div style={{ fontWeight: 600, fontSize: 15, marginTop: 4 }}>Administrator</div>
+              </div>
             </div>
-            <p className="muted" style={{ marginBottom: 16 }}>
-              Kuzatuv agentini o'z kompyuteringizga yuklab olib ishga tushiring. Agent operatsion tizimni avtomatik aniqlaydi va bir martalik pairing kodini taqdim etadi.
-            </p>
-
-            {installers.length > 0 ? (
-              <div className="tw" style={{ marginBottom: 14 }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Fayl</th>
-                      <th>OS</th>
-                      <th>Arxitektura</th>
-                      <th>Versiya</th>
-                      <th className="r">Yuklab olish</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {installers.map((inst, i) => {
-                      const current = detectUserOS();
-                      const isMatch = inst.platform === current.platform && inst.architecture === current.architecture;
-                      return (
-                        <tr key={i} style={isMatch ? { background: "var(--acs)" } : {}}>
-                          <td>
-                            <b>{inst.filename}</b>
-                            {isMatch && <span className="tag ok" style={{ marginLeft: 8 }}>Sizga mos</span>}
-                          </td>
-                          <td>{inst.platform === "darwin" ? "macOS" : "Windows"}</td>
-                          <td>{inst.architecture}</td>
-                          <td>v{inst.version}</td>
-                          <td className="r">
-                            <a href={inst.download_url} target="_blank" rel="noreferrer" className="btn sm">
-                              Yuklab olish
-                            </a>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : releases.length > 0 ? (
-              <div className="tw" style={{ marginBottom: 14 }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Platforma</th>
-                      <th>Arxitektura</th>
-                      <th>Versiya</th>
-                      <th className="r">Yuklab olish</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {releases.map((rel, i) => (
-                      <tr key={i}>
-                        <td><b>{rel.platform}</b></td>
-                        <td>{rel.architecture}</td>
-                        <td>{rel.version}</td>
-                        <td className="r">
-                          <a href={rel.download_url} download className="btn sm">
-                            Yuklab olish
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="placeholder-note" style={{ marginBottom: 14 }}>
-                <b>Lokal dasturchi rejimi:</b> Loyihani mahalliy sinovdan o'tkazish uchun terminalda:
-                <pre style={{ margin: "8px 0", background: "var(--bg2)", padding: 10, borderRadius: 6, overflowX: "auto" }}>
-                  <code>./start-local.command{"\n"}# yoki{"\n"}cd agent && go run ./cmd/browser-agent</code>
-                </pre>
-                Agent ishga tushgach, ekranda ko'rsatilgan <b>Pairing kodi</b> orqali qurilmangizni ulang.
-              </div>
-            )}
           </div>
 
-          <div className="panel" style={{ maxWidth: 750 }}>
-            <h3>Xavfsizlik va maxfiylik siyosati</h3>
-            <p className="muted">
-              • Brauzer tarixi, hisob ma'lumotlari, trafik va parollar markaziy bazaga saqlanmaydi.<br />
-              • Barcha ma'lumotlar to'g'ridan-to'g'ri agentdan shifrlangan kanal orqali bir martalik oqimda keladi.<br />
-              • Har qanday paytda qurilmani to'xtatishingiz yoki o'chirishingiz mumkin.
+          {/* 2. Parolni o'zgartirish */}
+          <div className="panel">
+            <h3 style={{ margin: "0 0 8px" }}>Parolni o'zgartirish</h3>
+            <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+              Hisobingiz xavfsizligini ta'minlash uchun kuchli paroldan foydalaning (kamida 12 ta belgi).
+            </p>
+            <form onSubmit={handlePasswordChange} style={{ maxWidth: 450 }}>
+              <div className="form-field">
+                <label>Joriy parol</label>
+                <input
+                  type="password"
+                  placeholder="••••••••••••"
+                  value={currentPwd}
+                  onChange={e => setCurrentPwd(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-field">
+                <label>Yangi parol</label>
+                <input
+                  type="password"
+                  placeholder="Kamida 12 ta belgi"
+                  value={newPwd}
+                  onChange={e => setNewPwd(e.target.value)}
+                  required
+                  minLength={12}
+                />
+              </div>
+
+              <div className="form-field">
+                <label>Yangi parolni takrorlang</label>
+                <input
+                  type="password"
+                  placeholder="Takror kiriting"
+                  value={confirmPwd}
+                  onChange={e => setConfirmPwd(e.target.value)}
+                  required
+                />
+              </div>
+
+              <button type="submit" className="btn" disabled={pwdLoading} style={{ marginTop: 12 }}>
+                {pwdLoading ? "Saqlanmoqda..." : "Parolni yangilash"}
+              </button>
+            </form>
+          </div>
+
+          {/* 3. Tizim mavzusi */}
+          <div className="panel">
+            <h3 style={{ margin: "0 0 10px" }}>Interfeys ko'rinishi</h3>
+            <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>
+              Sayt rang sxemasi va tungi rejim sozlamasi:
+            </p>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                type="button"
+                className={`btn sm ${themePreference === "light" ? "" : "ghost"}`}
+                onClick={() => handleThemeChange("light")}
+              >
+                ☀️ Yorug' (Light)
+              </button>
+              <button
+                type="button"
+                className={`btn sm ${themePreference === "dark" ? "" : "ghost"}`}
+                onClick={() => handleThemeChange("dark")}
+              >
+                🌙 Tungi (Dark)
+              </button>
+              <button
+                type="button"
+                className={`btn sm ${themePreference === "system" ? "" : "ghost"}`}
+                onClick={() => handleThemeChange("system")}
+              >
+                💻 Tizim bilan birga (System)
+              </button>
+            </div>
+          </div>
+
+          {/* 4. Bildirishnomalar va xavfsizlik preferensiyalari */}
+          <div className="panel">
+            <h3 style={{ margin: "0 0 14px" }}>Bildirishnomalar va xavfsizlik</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  className="switch"
+                  checked={soundNotify}
+                  onChange={e => setSoundNotify(e.target.checked)}
+                />
+                <div>
+                  <b>Ovozli bildirishnomalar</b>
+                  <small style={{ display: "block", color: "var(--mut)" }}>
+                    Yangi qurilma ulanganda yoki ogohlantirish paytida signal berish
+                  </small>
+                </div>
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  className="switch"
+                  checked={securityAlerts}
+                  onChange={e => setSecurityAlerts(e.target.checked)}
+                />
+                <div>
+                  <b>Xavfsizlik hodisalari bo'yicha ogohlantirish</b>
+                  <small style={{ display: "block", color: "var(--mut)" }}>
+                    Kutilmagan IP yoki seans aniqlanganda ekranda ogohlantirish
+                  </small>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* 5. Maxfiylik kafolati */}
+          <div className="panel">
+            <h3>Xavfsizlik va maxfiylik kafolati</h3>
+            <p className="muted" style={{ lineHeight: 1.6, margin: 0 }}>
+              • Brauzer tarixi, hisob ma'lumotlari, shaxsiy parollar va tarmoq trafigi <b>hech qachon markaziy server bazasida saqlanmaydi</b>.<br />
+              • Barcha ma'lumotlar faqat kompyuteringizdagi agent tomonidan bevosita sizning brauzeringizga bir martalik shifrlangan kanal orqali uzatiladi.
             </p>
           </div>
-        </>
+        </div>
       )}
 
       {/* ----------------- YORDAM ----------------- */}
@@ -644,6 +858,60 @@ export default function ManagementPage({ page, currentUser, onToast, onRefreshDe
                 Saqlash
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Re-pair / Update Device Modal */}
+      {rePairDevice && (
+        <div className="dialog-backdrop" onClick={e => { if (e.target === e.currentTarget && !rePairLoading) setRePairDevice(null); }}>
+          <div className="dialog">
+            <h2>Qurilmani yangilashni tasdiqlash</h2>
+            <p className="muted" style={{ lineHeight: 1.5, marginBottom: 16 }}>
+              <b>{rePairDevice.display_name}</b> kompyuterida yangi versiya agentini o'rnatganingizdan so'ng, ekranda paydo bo'lgan bir martalik <b>Pairing kodi</b>ni kiriting.
+              <br /><br />
+              <span style={{ color: "var(--ok)", fontWeight: 600 }}>
+                ✓ Mavjud qurilma qayta ulanadi va ro'yxatda takroriy (dublikat) kompyuter yaratilmaydi.
+              </span>
+            </p>
+
+            <form onSubmit={handleRePairSubmit}>
+              <div className="form-field">
+                <label>Agent ko'rsatgan 8-12 xonali ulanish kodi</label>
+                <input
+                  type="text"
+                  placeholder="Masalan: A1B2-C3D4"
+                  value={rePairCode}
+                  onChange={e => setRePairCode(e.target.value)}
+                  style={{ textTransform: "uppercase", letterSpacing: 2, fontWeight: 700, fontSize: 16 }}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div style={{ background: "var(--bg2)", padding: 12, borderRadius: 8, margin: "14px 0", fontSize: 13 }}>
+                <b>Saqlanadigan ruxsatlar:</b>
+                <div className="scopes" style={{ marginTop: 6 }}>
+                  {(rePairDevice.scopes || ["browser.discovery", "profile.discovery", "history.read", "traffic.aggregate"]).map(s => (
+                    <span key={s} className="scope-chip on">✓ {s}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="dialog-buttons">
+                <button
+                  type="button"
+                  className="btn o"
+                  disabled={rePairLoading}
+                  onClick={() => setRePairDevice(null)}
+                >
+                  Bekor qilish
+                </button>
+                <button type="submit" className="btn" disabled={rePairLoading}>
+                  {rePairLoading ? "Bog'lanmoqda..." : "Tasdiqlash va qayta ulash"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
