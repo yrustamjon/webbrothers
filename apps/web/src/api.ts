@@ -2,7 +2,20 @@
 
 let csrfToken = "";
 
-async function apiFetch(path: string, opts: RequestInit = {}): Promise<Response> {
+export async function refreshCsrf(): Promise<string> {
+  try {
+    const data = await apiJSON<{ csrf_token: string }>("/api/v1/auth/csrf");
+    csrfToken = data.csrf_token;
+    return csrfToken;
+  } catch {
+    return "";
+  }
+}
+
+export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Response> {
+  if (!csrfToken && path !== "/api/v1/auth/csrf" && path !== "/api/v1/auth/login" && path !== "/api/v1/auth/register" && path !== "/api/v1/health") {
+    await refreshCsrf();
+  }
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(opts.headers as Record<string, string>),
@@ -60,14 +73,6 @@ export async function getMe(): Promise<Me> {
   return apiJSON<Me>("/api/v1/auth/me");
 }
 
-export async function refreshCsrf(): Promise<void> {
-  try {
-    const data = await apiJSON<{ csrf_token: string }>("/api/v1/auth/csrf");
-    csrfToken = data.csrf_token;
-  } catch {
-    /* not logged in */
-  }
-}
 
 /** Devices */
 export interface Device {
@@ -134,6 +139,10 @@ export interface QueryParams {
   sort?: "asc" | "desc";
   start?: string;
   end?: string;
+  sample_count?: number;
+  interval_ms?: number;
+  cursor?: string;
+  stream?: boolean;
 }
 
 export async function query<T>(

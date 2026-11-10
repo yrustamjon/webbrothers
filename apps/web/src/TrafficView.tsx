@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { query, streamQuery } from "./api";
 import type { Profile } from "./Sidebar";
 
 interface TrafficSample {
@@ -49,42 +50,25 @@ export default function TrafficView({ deviceId, profile }: { deviceId: string; p
 
     (async () => {
       try {
-        const res = await fetch(`/api/v1/devices/${deviceId}/stream`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "TRAFFIC_STATS_REQUEST",
-            params: { stream: true, sample_count: 20, interval_ms: 1000 },
-          }),
-          signal,
-        });
-        if (!res.ok || !res.body) return;
-        const reader = res.body.getReader();
-        const dec = new TextDecoder();
-        let buf = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += dec.decode(value, { stream: true });
-          const lines = buf.split("\n"); buf = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            const frame = JSON.parse(line) as { payload?: { items?: TrafficSample[] } };
-            const samples = frame.payload?.items ?? [];
-            for (const s of samples) {
-              const dl = s.download_bps ?? 0;
-              const ul = s.upload_bps ?? 0;
-              totalDl.current += dl;
-              totalUl.current += ul;
-              setDlArr(prev => [...prev.slice(1), dl]);
-              setUlArr(prev => [...prev.slice(1), ul]);
-              setLiveStats({
-                dl: fmt(dl), ul: fmt(ul),
-                tdl: fmtTotal(totalDl.current),
-                tul: fmtTotal(totalUl.current),
-              });
-            }
+        for await (const frame of streamQuery<{ payload?: { items?: TrafficSample[] } }>(
+          deviceId,
+          "TRAFFIC_STATS_REQUEST",
+          { sample_count: 20 },
+          signal
+        )) {
+          const samples = frame.payload?.items ?? [];
+          for (const s of samples) {
+            const dl = s.download_bps ?? 0;
+            const ul = s.upload_bps ?? 0;
+            totalDl.current += dl;
+            totalUl.current += ul;
+            setDlArr(prev => [...prev.slice(1), dl]);
+            setUlArr(prev => [...prev.slice(1), ul]);
+            setLiveStats({
+              dl: fmt(dl), ul: fmt(ul),
+              tdl: fmtTotal(totalDl.current),
+              tul: fmtTotal(totalUl.current),
+            });
           }
         }
       } catch { /* stream ended or aborted */ }
@@ -97,13 +81,11 @@ export default function TrafficView({ deviceId, profile }: { deviceId: string; p
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/v1/devices/${deviceId}/query`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "CONNECTIONS_QUERY", params: { page_size: 50 } }),
-        });
-        const data = await res.json();
+        const data = await query<{ payload?: { items?: Connection[] } }>(
+          deviceId,
+          "CONNECTIONS_QUERY",
+          { page_size: 50 }
+        );
         setConns(data.payload?.items ?? []);
       } catch { /* ignore */ }
     })();

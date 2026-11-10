@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { query, streamQuery } from "./api";
 import type { Profile } from "./Sidebar";
 
 interface HistoryItem {
@@ -67,37 +68,17 @@ export function HistoryView({ deviceId, profile, onToast }: { deviceId: string; 
       if (search) params.search = search;
       if (cur) params.cursor = cur;
 
-      const res = await fetch(`/api/v1/devices/${deviceId}/stream`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "HISTORY_QUERY", params }),
-        signal: abortRef.current.signal,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail ?? res.statusText);
-      }
-
       const all: HistoryItem[] = [];
       let nextCursor: string | null = null;
-      const reader = res.body!.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const frame = JSON.parse(line) as { payload?: StreamPage };
-          if (frame.payload?.items) all.push(...frame.payload.items as HistoryItem[]);
-          if (frame.payload?.next_cursor !== undefined) nextCursor = frame.payload.next_cursor ?? null;
-        }
+      for await (const frame of streamQuery<{ payload?: StreamPage }>(
+        deviceId,
+        "HISTORY_QUERY",
+        params,
+        abortRef.current?.signal
+      )) {
+        if (frame.payload?.items) all.push(...(frame.payload.items as HistoryItem[]));
+        if (frame.payload?.next_cursor !== undefined) nextCursor = frame.payload.next_cursor ?? null;
       }
 
       setItems(prev => replace ? all : [...prev, ...all]);
@@ -109,7 +90,7 @@ export function HistoryView({ deviceId, profile, onToast }: { deviceId: string; 
     } finally {
       setLoading(false);
     }
-  }, [deviceId, profile, pageSize]);
+  }, [deviceId, profile, pageSize, onToast]);
 
   useEffect(() => { setItems([]); setCursor(null); setHasMore(false); load(""); }, [profile.profile_id, profile.browser_id]);
 
@@ -195,31 +176,13 @@ export function LoginsView({ deviceId, profile, onToast }: { deviceId: string; p
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/devices/${deviceId}/stream`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "LOGIN_INVENTORY_QUERY",
-          params: { browser_id: profile.browser_id, profile_id: profile.profile_id, stream: true, page_size: 100 },
-        }),
-      });
-      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail ?? res.statusText); }
-
       const all: LoginItem[] = [];
-      const reader = res.body!.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n"); buf = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const frame = JSON.parse(line) as { payload?: { items?: LoginItem[] } };
-          if (frame.payload?.items) all.push(...frame.payload.items);
-        }
+      for await (const frame of streamQuery<{ payload?: { items?: LoginItem[] } }>(
+        deviceId,
+        "LOGIN_INVENTORY_QUERY",
+        { browser_id: profile.browser_id, profile_id: profile.profile_id, page_size: 100 }
+      )) {
+        if (frame.payload?.items) all.push(...frame.payload.items);
       }
       setItems(all);
     } catch (err: unknown) {
@@ -227,9 +190,9 @@ export function LoginsView({ deviceId, profile, onToast }: { deviceId: string; p
     } finally {
       setLoading(false);
     }
-  }, [deviceId, profile]);
+  }, [deviceId, profile, onToast]);
 
-  useEffect(() => { setItems([]); load(); }, [profile.profile_id, profile.browser_id]);
+  useEffect(() => { setItems([]); load(); }, [profile.profile_id, profile.browser_id, load]);
 
   const revealPassword = async (idx: number, item: LoginItem) => {
     if (revealed[idx] !== undefined) {
@@ -237,16 +200,11 @@ export function LoginsView({ deviceId, profile, onToast }: { deviceId: string; p
       return;
     }
     try {
-      const res = await fetch(`/api/v1/devices/${deviceId}/query`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "PASSWORD_REVEAL_QUERY",
-          params: { browser_id: profile.browser_id, profile_id: profile.profile_id, domain: item.domain, username: item.username },
-        }),
-      });
-      const data = await res.json();
+      const data = await query<{ payload?: { password?: string } }>(
+        deviceId,
+        "PASSWORD_REVEAL_QUERY",
+        { browser_id: profile.browser_id, profile_id: profile.profile_id, domain: item.domain, username: item.username }
+      );
       setRevealed(r => ({ ...r, [idx]: data.payload?.password ?? item.password ?? null }));
     } catch {
       setRevealed(r => ({ ...r, [idx]: item.password ?? null }));
@@ -255,15 +213,11 @@ export function LoginsView({ deviceId, profile, onToast }: { deviceId: string; p
 
   const deleteItem = async (item: LoginItem, idx: number) => {
     try {
-      await fetch(`/api/v1/devices/${deviceId}/query`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "LOGIN_DELETE_COMMAND",
-          params: { browser_id: profile.browser_id, profile_id: profile.profile_id, domain: item.domain, username: item.username },
-        }),
-      });
+      await query(
+        deviceId,
+        "LOGIN_DELETE_COMMAND",
+        { browser_id: profile.browser_id, profile_id: profile.profile_id, domain: item.domain, username: item.username }
+      );
       setItems(prev => prev.filter((_, i) => i !== idx));
       onToast("Login o'chirildi");
     } catch (err: unknown) {
@@ -274,15 +228,11 @@ export function LoginsView({ deviceId, profile, onToast }: { deviceId: string; p
   const addLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await fetch(`/api/v1/devices/${deviceId}/query`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "LOGIN_CREATE_COMMAND",
-          params: { browser_id: profile.browser_id, profile_id: profile.profile_id, ...form },
-        }),
-      });
+      await query(
+        deviceId,
+        "LOGIN_CREATE_COMMAND",
+        { browser_id: profile.browser_id, profile_id: profile.profile_id, ...form }
+      );
       setItems(prev => [...prev, { ...form }]);
       setForm({ domain: "", username: "", password: "" });
       setAdding(false);

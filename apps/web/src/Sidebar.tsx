@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getDevices, type Device } from "./api";
+import { getDevices, query, type Device } from "./api";
 
 export interface Profile {
   browser_id: string;
@@ -37,8 +37,38 @@ export default function Sidebar({ deviceId, selectedProfile, onSelectProfile }: 
   const [browsers, setBrowsers] = useState<Record<string, { id: string; name: string; profiles: { id: string; name: string }[] }[]>>({});
   const [openDevices, setOpenDevices] = useState<Record<string, boolean>>({});
   const [openBrowsers, setOpenBrowsers] = useState<Record<string, boolean>>({});
-  const [query, setQuery] = useState("");
+  const [filterText, setFilterText] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const loadBrowsers = useCallback(async (dev: Device) => {
+    if (browsers[dev.id]) return;
+    if (!dev.scopes.includes("browser.discovery")) return;
+    try {
+      const data = await query<{ payload?: { items?: { id: string; name: string }[] } }>(
+        dev.id,
+        "BROWSER_LIST_REQUEST"
+      );
+
+      const browserList = data.payload?.items ?? [];
+      const withProfiles: { id: string; name: string; profiles: { id: string; name: string }[] }[] = [];
+
+      for (const b of browserList.slice(0, 10)) {
+        try {
+          const pr = await query<{ payload?: { items?: { id: string; name: string }[] } }>(
+            dev.id,
+            "PROFILE_LIST_REQUEST",
+            { browser_id: b.id }
+          );
+          withProfiles.push({ id: b.id, name: b.name, profiles: pr.payload?.items ?? [] });
+        } catch {
+          withProfiles.push({ id: b.id, name: b.name, profiles: [] });
+        }
+      }
+      setBrowsers(prev => ({ ...prev, [dev.id]: withProfiles }));
+    } catch {
+      /* ignore */
+    }
+  }, [browsers]);
 
   const loadDevices = useCallback(async () => {
     try {
@@ -46,47 +76,18 @@ export default function Sidebar({ deviceId, selectedProfile, onSelectProfile }: 
       setDevices(devs);
       // Birinchi online qurilmani oching
       const first = devs.find(d => !d.revoked);
-      if (first) setOpenDevices(o => ({ ...o, [first.id]: true }));
+      if (first) {
+        setOpenDevices(o => ({ ...o, [first.id]: true }));
+        loadBrowsers(first);
+      }
     } catch {
       /* ignore */
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadBrowsers]);
 
   useEffect(() => { loadDevices(); }, [loadDevices]);
-
-  // Brauzerlar va profillarni agent orqali yuklash
-  const loadBrowsers = useCallback(async (dev: Device) => {
-    if (browsers[dev.id]) return;
-    if (!dev.scopes.includes("browser.discovery")) return;
-    try {
-      const { payload } = await fetch(`/api/v1/devices/${dev.id}/query`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "BROWSER_LIST_REQUEST", params: {} }),
-      }).then(r => r.json());
-
-      const browserList: { id: string; name: string }[] = payload?.items ?? [];
-      const withProfiles: typeof browsers[string] = [];
-
-      for (const b of browserList.slice(0, 10)) {
-        try {
-          const pr = await fetch(`/api/v1/devices/${dev.id}/query`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "PROFILE_LIST_REQUEST", params: { browser_id: b.id } }),
-          }).then(r => r.json());
-          withProfiles.push({ id: b.id, name: b.name, profiles: pr.payload?.items ?? [] });
-        } catch {
-          withProfiles.push({ id: b.id, name: b.name, profiles: [] });
-        }
-      }
-      setBrowsers(prev => ({ ...prev, [dev.id]: withProfiles }));
-    } catch {/* ignore */}
-  }, [browsers]);
 
   const toggleDevice = (dev: Device) => {
     const willOpen = !openDevices[dev.id];
@@ -94,14 +95,14 @@ export default function Sidebar({ deviceId, selectedProfile, onSelectProfile }: 
     if (willOpen) loadBrowsers(dev);
   };
 
-  const q = query.toLowerCase();
+  const q = filterText.toLowerCase();
 
   return (
     <aside className="side" aria-label="Qurilmalar">
       <div className="brand">WebBrothers</div>
       <div className="srch">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Qurilma yoki profil qidirish…" />
+        <input value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Qurilma yoki profil qidirish…" />
       </div>
 
       {loading ? (
