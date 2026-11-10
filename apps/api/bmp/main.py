@@ -157,6 +157,16 @@ class StreamRequest:
         self.queue.put_nowait(error)
 
 
+def is_origin_allowed(origin: str | None, public_origin: str) -> bool:
+    if not origin or origin == public_origin:
+        return True
+    if ("localhost" in public_origin or "127.0.0.1" in public_origin) and (
+        "localhost" in origin or "127.0.0.1" in origin
+    ):
+        return origin.split(":")[-1] == public_origin.split(":")[-1]
+    return False
+
+
 def create_app(settings=None):
     config = settings or Settings()
     engine = create_engine(
@@ -235,7 +245,7 @@ def create_app(settings=None):
     async def headers(request, call_next):
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             origin = request.headers.get("origin")
-            if origin and origin != config.public_origin:
+            if not is_origin_allowed(origin, config.public_origin):
                 return JSONResponse(
                     {"detail": "Manba ruxsat etilmagan"},
                     status_code=403,
@@ -261,7 +271,7 @@ def create_app(settings=None):
             fail(401, "Tizimga kiring")
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             origin = request.headers.get("origin")
-            if origin and origin != config.public_origin:
+            if not is_origin_allowed(origin, config.public_origin):
                 fail(403, "Manba ruxsat etilmagan")
             csrf = request.headers.get("x-csrf-token", "")
             if not hmac.compare_digest(digest(csrf), session.csrf_hash):
